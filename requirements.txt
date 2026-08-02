@@ -1,6 +1,6 @@
 fastapi
 uvicorn[standard]
-crewai>=0.100.0
+crewai
 crewai-tools
 python-dotenv
 openai
