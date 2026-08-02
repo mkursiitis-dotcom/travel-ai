@@ -10,3 +10,4 @@ pydantic
 nest-asyncio
 requests
 httpx
+tiktoken==0.9.0
