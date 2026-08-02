@@ -1,14 +1,13 @@
-import asyncio
 from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
 from crew import generate_trip
 
 app = FastAPI(title="AI Trip Planner Backend")
 
+# Enable global CORS to allow cross-origin requests from any frontend domain
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -20,11 +19,13 @@ app.add_middleware(
 BASE_DIR = Path(__file__).resolve().parent
 
 
+# Health check root endpoint
 @app.get("/")
 async def root():
     return {"status": "FastAPI backend on Render is running!"}
 
 
+# Debug endpoint for frontend validation
 @app.get("/debug")
 @app.get("/debug/")
 async def debug():
@@ -39,13 +40,12 @@ class TripRequest(BaseModel):
     budget: str
 
 
+# Generates trip itinerary via CrewAI
 @app.post("/generate-trip")
 @app.post("/generate-trip/")
 async def generate(request: TripRequest):
     try:
-        # Izpildām CrewAI atsevišķā pavedienā, lai nebloķētu async cilpu
-        result = await run_in_threadpool(
-            generate_trip,
+        result = await generate_trip(
             request.starting_city,
             request.days,
             request.travel_style,
@@ -57,5 +57,4 @@ async def generate(request: TripRequest):
             "trip": result
         }
     except Exception as e:
-        print(f"❌ KĻŪDA CREWAI IZPILDĒ: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
