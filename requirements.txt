@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+crewai
+crewai-tools
+litellm
+python-dotenv
+openai
+openrouteservice
+pydantic
+nest-asyncio
+requests
+httpx
