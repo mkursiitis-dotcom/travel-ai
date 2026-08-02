@@ -1,11 +1,16 @@
+```python
 import os
 from dotenv import load_dotenv
+
 from crewai import Agent, Task, Crew, Process, LLM
+from crewai_tools import SerperDevTool
+
 
 load_dotenv()
 
+
 # ==========================
-# LLM (Ātrākais un efektīvākais modelis)
+# LLM
 # ==========================
 
 llm = LLM(
@@ -15,96 +20,191 @@ llm = LLM(
 
 
 # ==========================
-# OPTIMIZĒTI AĢENTI (2 aģenti 3 vietā)
+# TOOLS
+# ==========================
+
+search_tool = SerperDevTool()
+
+
+# ==========================
+# AGENTS
 # ==========================
 
 planner = Agent(
-    role="Latvijas ceļojumu un loģistikas eksperts",
-    goal="Izveidot optimālu, reālistisku un detalizētu Latvijas ceļojuma plānu.",
+    role="Latvijas ceļojumu plānotājs",
+
+    goal=(
+        "Izveidot optimālu un reālistisku "
+        "Latvijas ceļojuma koncepciju."
+    ),
+
     backstory="""
-Tu esi pieredzējis tūrisma eksperts, kurš izcili pārzina Latvijas ģeogrāfiju, 
-pilis, dabas takas, restorānus un naktsmītnes. Tu spēj ātri saplānot loģisku 
-maršrutu, lai ceļotājs nepavadītu visu dienu pie stūres un iekļautos budžetā.
+Tu esi pieredzējis Latvijas tūrisma plānotājs.
+Tu labi pārzini Latvijas pilsētas, reģionus,
+dabas objektus, pilis un apskates vietas.
+
+Tu veido loģiskus maršrutus, lai ceļotājs
+nepavadītu pārāk daudz laika transportā.
 """,
+
     llm=llm,
     verbose=True
 )
 
+
+guide_logistics = Agent(
+    role="Latvijas tūrisma un loģistikas eksperts",
+
+    goal=(
+        "Atrast piemērotākās apskates vietas, "
+        "ēdināšanas vietas un optimālu maršrutu."
+    ),
+
+    backstory="""
+Tu esi Latvijas ceļojumu eksperts.
+Tu pārzini apskates vietas, restorānus,
+naktsmītnes un ceļu loģistiku.
+
+Tu veido praktiskus plānus ar reālām izmaksām.
+""",
+
+    tools=[search_tool],
+    llm=llm,
+    verbose=True
+)
+
+
 reviewer = Agent(
     role="Ceļojumu plāna redaktors",
-    goal="Noformēt gala ceļojuma plānu perfektā Markdown tabulu formātā.",
+
+    goal=(
+        "Izveidot profesionālu gala ceļojuma "
+        "plānu Markdown formātā."
+    ),
+
     backstory="""
-Tu esi pedantisks tūrisma satura redaktors. Tavs vienīgais uzdevums ir strukturēt 
-sniegto maršrutu nevainojamās Markdown tabulās atbilstoši norādītajām prasībām.
+Tu esi rūpīgs tūrisma satura redaktors.
+Tu pārbaudi, lai dienu skaits būtu pareizs,
+un izveido skaidras Markdown tabulas.
 """,
+
     llm=llm,
     verbose=True
 )
 
 
 # ==========================
-# OPTIMIZĒTI TASKI
+# TASKS
 # ==========================
 
 task1 = Task(
     description="""
-Saplāno detalizētu {days} dienu ceļojuma maršrutu Latvijā.
+Izveido {days} dienu Latvijas ceļojuma konceptu.
 
 Parametri:
-- Sākuma pilsēta: {starting_city}
-- Ceļojuma veids: {travel_style}
-- Transporta veids: {transport}
-- Budžets: {budget}
+
+Sākuma pilsēta:
+{starting_city}
+
+Ceļojuma veids:
+{travel_style}
+
+Transports:
+{transport}
+
+Budžets:
+{budget}
+
 
 Prasības:
-1. Katrai no TIEŠI {days} dienām piemeklē reālistiskus apskates objektus, dabas takas un pilsētas.
-2. Ieteic ēdināšanas vietas (pusdienas un vakariņas) un naktsmītnes atbilstoši budžetam: {budget}.
-3. Nodrošini, ka loģistika ir loģiska no {starting_city} un atbilst transportam: {transport}.
+
+- Katrai dienai norādi galveno reģionu.
+- Izvēlies loģisku maršrutu.
+- Ņem vērā transportu un budžetu.
 """,
-    expected_output="Katrai dienai sakārtots apskates objektu, ēdināšanas un naktsmītņu saraksts ar izmaksām.",
+
+    expected_output=(
+        "Ceļojuma koncepta plāns pa dienām."
+    ),
+
     agent=planner
 )
 
+
 task2 = Task(
     description="""
-Sagatavo GALA ceļojuma plānu tīrā Markdown formātā par {days} dienām no {starting_city}.
+Izveido detalizētu {days} dienu ceļojuma plānu.
 
-SVARĪGI FORMATĒŠANAS NOTEIKUMI:
-- Katrai dienai OBLIGĀTI izveido Markdown tabulu!
-- Tabulas kolonnas: | Laiks | Atrašanās vieta | Objekts / Darbība | Apraksts |
-- Neizmanto parastus sarakstus dienas grafikam, TIKAI tabulas.
+Informācija:
 
-Izmanto šādu struktūru:
+Sākuma pilsēta:
+{starting_city}
 
-# {days} Dienu Ceļojuma Plāns ({starting_city})
+Ceļojuma veids:
+{travel_style}
 
-## 1. Diena: [Dienas nosaukums]
+Transports:
+{transport}
+
+Budžets:
+{budget}
+
+
+Iekļauj:
+
+- apskates objektus
+- dabas takas
+- ēdināšanu
+- naktsmītnes
+- aptuvenās izmaksas
+""",
+
+    expected_output=(
+        "Detalizēts ceļojuma plāns ar izmaksām."
+    ),
+
+    agent=guide_logistics
+)
+
+
+task3 = Task(
+    description="""
+Izveido gala ceļojuma plānu Markdown formātā.
+
+OBLIGĀTI:
+
+Katrai dienai izveido Markdown tabulu:
 
 | Laiks | Atrašanās vieta | Objekts / Darbība | Apraksts |
-| --- | --- | --- | --- |
-| 09:00 - 10:00 | {starting_city} | Izbraukšana | Došanās ceļā... |
+|---|---|---|---|
 
-### 🍽️ Ēdināšana un naktsmītnes
-- **Pusdienas:** ...
-- **Vakariņas:** ...
-- **Naktsmītne:** ...
+Pēc katras dienas pievieno:
 
----
+### Ēdināšana un naktsmītnes
 
-(Atkārto šo struktūru katrai no {days} dienām)
+- Pusdienas:
+- Vakariņas:
+- Naktsmītne:
 
-## 💰 Aptuvenās kopējās izmaksas
-- Transporta izmaksas: ...
-- Apskates objekti: ...
-- Ēdināšana: ...
-- Naktsmītnes: ...
-- **KOPĀ:** ...
 
-## 💡 Praktiski padomi ceļotājiem
-- Padoms 1...
-- Padoms 2...
+Beigās pievieno:
+
+## Aptuvenās izmaksas
+
+- Transports
+- Ēdiens
+- Naktsmītnes
+- Ieejas maksas
+- Kopā
+
+
+Un praktiskus ceļošanas padomus.
 """,
-    expected_output="Gala Markdown ceļojuma plāns ar tabulām par katru dienu.",
+
+    expected_output=(
+        "Pilns Markdown ceļojuma plāns."
+    ),
+
     agent=reviewer
 )
 
@@ -114,25 +214,37 @@ Izmanto šādu struktūru:
 # ==========================
 
 crew = Crew(
-    agents=[planner, reviewer],
-    tasks=[task1, task2],
+    agents=[
+        planner,
+        guide_logistics,
+        reviewer
+    ],
+
+    tasks=[
+        task1,
+        task2,
+        task3
+    ],
+
     process=Process.sequential,
+
     verbose=True
 )
 
 
 # ==========================
-# FUNKCIJA FASTAPI
+# API FUNCTION
 # ==========================
 
-def generate_trip(
+async def generate_trip(
     starting_city: str,
     days: int,
     travel_style: str,
     transport: str,
     budget: str
 ):
-    trip_inputs = {
+
+    inputs = {
         "starting_city": starting_city,
         "days": days,
         "travel_style": travel_style,
@@ -140,7 +252,11 @@ def generate_trip(
         "budget": budget
     }
 
-    # Izmantojam parasto (sinhrono) kickoff, jo FastAPI pusē app.py izmanto run_in_threadpool
-    result = crew.kickoff(inputs=trip_inputs)
+
+    result = await crew.kickoff_async(
+        inputs=inputs
+    )
+
 
     return result.raw
+```
