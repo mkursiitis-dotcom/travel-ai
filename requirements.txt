@@ -1,13 +1,10 @@
 fastapi
 uvicorn[standard]
-crewai
+crewai>=0.100.0
 crewai-tools
-litellm
 python-dotenv
 openai
-openrouteservice
 pydantic
 nest-asyncio
 requests
 httpx
-tiktoken==0.9.0
