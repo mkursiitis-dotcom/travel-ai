@@ -1,13 +1,18 @@
-from pathlib import Path
+```python
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from crew import generate_trip
 
+
 app = FastAPI(title="AI Trip Planner Backend")
 
-# Enable global CORS to allow cross-origin requests from any frontend domain
+
+# ==========================
+# CORS
+# ==========================
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -16,21 +21,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-BASE_DIR = Path(__file__).resolve().parent
 
+# ==========================
+# HEALTH CHECK
+# ==========================
 
-# Health check root endpoint
 @app.get("/")
 async def root():
-    return {"status": "FastAPI backend on Render is running!"}
+    return {
+        "status": "FastAPI backend on Render is running!"
+    }
 
 
-# Debug endpoint for frontend validation
 @app.get("/debug")
 @app.get("/debug/")
 async def debug():
-    return {"status": "FastAPI backend connection verified!"}
+    return {
+        "status": "FastAPI backend connection verified!"
+    }
 
+
+# ==========================
+# REQUEST MODEL
+# ==========================
 
 class TripRequest(BaseModel):
     starting_city: str
@@ -40,10 +53,14 @@ class TripRequest(BaseModel):
     budget: str
 
 
-# Generates trip itinerary via CrewAI
+# ==========================
+# GENERATE TRIP
+# ==========================
+
 @app.post("/generate-trip")
 @app.post("/generate-trip/")
 async def generate(request: TripRequest):
+
     try:
         result = await generate_trip(
             request.starting_city,
@@ -56,5 +73,12 @@ async def generate(request: TripRequest):
         return {
             "trip": result
         }
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"CREWAI ERROR: {str(e)}")
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+```
