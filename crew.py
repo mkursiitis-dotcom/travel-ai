@@ -4,7 +4,6 @@ from crewai import Agent, Task, Crew, Process, LLM
 
 load_dotenv()
 
-
 # ==========================
 # LLM (Ātrākais un efektīvākais modelis)
 # ==========================
