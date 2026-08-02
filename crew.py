@@ -1,4 +1,3 @@
-```python
 import os
 from dotenv import load_dotenv
 
@@ -259,4 +258,3 @@ async def generate_trip(
 
 
     return result.raw
-```
