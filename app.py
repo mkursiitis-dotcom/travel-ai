@@ -1,4 +1,3 @@
-```python
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -81,4 +80,3 @@ async def generate(request: TripRequest):
             status_code=500,
             detail=str(e)
         )
-```
