@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from crew import (
     generate_trip,
+    debug_litellm,
     debug_crewai_llm,
     CREWAI_VERSION,
     CREWAI_TOOLS_VERSION,
@@ -15,10 +16,6 @@ from crew import (
     OPENAI_VERSION,
 )
 
-
-# ============================================================
-# FASTAPI
-# ============================================================
 
 app = FastAPI(
     title="AI Trip Planner Backend"
@@ -30,6 +27,7 @@ app = FastAPI(
 # ============================================================
 
 app.add_middleware(
+
     CORSMiddleware,
 
     allow_origins=["*"],
@@ -51,117 +49,36 @@ async def startup_event():
 
     print("")
     print("=" * 70)
-    print("AI TRIP PLANNER BACKEND STARTED")
+    print("AI TRIP PLANNER STARTED")
     print("=" * 70)
 
     print(
-        "RENDER:",
-        os.getenv("RENDER", "NOT SET")
+        "OPENROUTER_API_KEY exists:",
+        bool(os.getenv("OPENROUTER_API_KEY"))
     )
 
-    print("")
-    print("PACKAGE VERSIONS:")
+    key = os.getenv("OPENROUTER_API_KEY")
 
-    print(
-        "  crewai:",
-        CREWAI_VERSION
-    )
-
-    print(
-        "  crewai-tools:",
-        CREWAI_TOOLS_VERSION
-    )
-
-    print(
-        "  litellm:",
-        LITELLM_VERSION
-    )
-
-    print(
-        "  openai:",
-        OPENAI_VERSION
-    )
-
-    openrouter_key = os.getenv(
-        "OPENROUTER_API_KEY"
-    )
-
-    serper_key = os.getenv(
-        "SERPER_API_KEY"
-    )
-
-    ors_key = os.getenv(
-        "ORS_API_KEY"
-    )
-
-    print("")
-    print("ENVIRONMENT VARIABLES:")
-
-    print("")
-    print("OPENROUTER_API_KEY:")
-
-    print(
-        "  Exists:",
-        bool(openrouter_key)
-    )
-
-    if openrouter_key:
+    if key:
 
         print(
-            "  Prefix:",
-            openrouter_key[:15]
+            "OPENROUTER key prefix:",
+            key[:15]
         )
 
         print(
-            "  Length:",
-            len(openrouter_key)
+            "OPENROUTER key length:",
+            len(key)
         )
 
     print("")
-    print("SERPER_API_KEY:")
+    print("VERSIONS:")
+    print("CrewAI:", CREWAI_VERSION)
+    print("CrewAI Tools:", CREWAI_TOOLS_VERSION)
+    print("LiteLLM:", LITELLM_VERSION)
+    print("OpenAI:", OPENAI_VERSION)
 
-    print(
-        "  Exists:",
-        bool(serper_key)
-    )
-
-    if serper_key:
-
-        print(
-            "  Prefix:",
-            serper_key[:10]
-        )
-
-        print(
-            "  Length:",
-            len(serper_key)
-        )
-
-    print("")
-    print("ORS_API_KEY:")
-
-    print(
-        "  Exists:",
-        bool(ors_key)
-    )
-
-    if ors_key:
-
-        print(
-            "  Prefix:",
-            ors_key[:10]
-        )
-
-        print(
-            "  Length:",
-            len(ors_key)
-        )
-
-    print("")
     print("=" * 70)
-    print("STARTUP COMPLETE")
-    print("=" * 70)
-    print("")
 
 
 # ============================================================
@@ -177,36 +94,15 @@ async def root():
 
 
 # ============================================================
-# BASIC DEBUG
-# ============================================================
-
-@app.get("/debug")
-@app.get("/debug/")
-async def debug():
-
-    return {
-        "status": "FastAPI backend connection verified!"
-    }
-
-
-# ============================================================
-# DEBUG ENVIRONMENT
+# DEBUG ENV
 # ============================================================
 
 @app.get("/debug-env")
 @app.get("/debug-env/")
 async def debug_env():
 
-    openrouter_key = os.getenv(
+    key = os.getenv(
         "OPENROUTER_API_KEY"
-    )
-
-    serper_key = os.getenv(
-        "SERPER_API_KEY"
-    )
-
-    ors_key = os.getenv(
-        "ORS_API_KEY"
     )
 
     return {
@@ -218,54 +114,24 @@ async def debug_env():
 
         "openrouter": {
 
-            "exists": bool(openrouter_key),
+            "exists": bool(key),
 
             "length": (
-                len(openrouter_key)
-                if openrouter_key
+                len(key)
+                if key
                 else 0
             ),
 
             "prefix": (
-                openrouter_key[:15]
-                if openrouter_key
+                key[:15]
+                if key
                 else None
             )
         },
 
-        "serper": {
-
-            "exists": bool(serper_key),
-
-            "length": (
-                len(serper_key)
-                if serper_key
-                else 0
-            ),
-
-            "prefix": (
-                serper_key[:10]
-                if serper_key
-                else None
-            )
-        },
-
-        "ors": {
-
-            "exists": bool(ors_key),
-
-            "length": (
-                len(ors_key)
-                if ors_key
-                else 0
-            ),
-
-            "prefix": (
-                ors_key[:10]
-                if ors_key
-                else None
-            )
-        },
+        "openai_base": os.getenv(
+            "OPENAI_API_BASE"
+        ),
 
         "versions": {
 
@@ -288,44 +154,16 @@ async def debug_env():
 @app.get("/debug-openrouter/")
 async def debug_openrouter():
 
-    print("")
-    print("=" * 70)
-    print("DIRECT OPENROUTER DEBUG TEST")
-    print("=" * 70)
-
     key = os.getenv(
         "OPENROUTER_API_KEY"
     )
 
     if not key:
 
-        print(
-            "OPENROUTER_API_KEY is NOT configured."
-        )
-
         return {
-
-            "key_exists": False,
-
-            "message": (
-                "OPENROUTER_API_KEY is not configured"
-            )
+            "success": False,
+            "error": "OPENROUTER_API_KEY missing"
         }
-
-    print(
-        "Key exists:",
-        True
-    )
-
-    print(
-        "Key prefix:",
-        key[:15]
-    )
-
-    print(
-        "Key length:",
-        len(key)
-    )
 
     try:
 
@@ -340,161 +178,49 @@ async def debug_openrouter():
             timeout=30
         )
 
-        print(
-            "OpenRouter HTTP status:",
-            response.status_code
-        )
-
-        print(
-            "OpenRouter response:",
-            response.text[:1000]
-        )
-
-        print("=" * 70)
-        print(
-            "END DIRECT OPENROUTER DEBUG TEST"
-        )
-        print("=" * 70)
-
         return {
 
-            "key_exists": True,
-
-            "key_length": len(key),
-
-            "key_prefix": key[:15],
-
-            "openrouter_status": (
-                response.status_code
+            "success": (
+                response.status_code == 200
             ),
 
-            "openrouter_response": (
-                response.text[:1000]
-            )
+            "status": response.status_code,
+
+            "response": response.text[:1000]
         }
 
     except Exception as e:
 
-        print("")
-        print(
-            "OPENROUTER CONNECTION ERROR"
-        )
-
-        print(
-            "Type:",
-            type(e).__name__
-        )
-
-        print(
-            "Message:",
-            str(e)
-        )
-
-        traceback.print_exc()
-
-        print("=" * 70)
-
         return {
 
-            "key_exists": True,
+            "success": False,
 
-            "key_length": len(key),
-
-            "key_prefix": key[:15],
-
-            "error_type": (
-                type(e).__name__
-            ),
+            "error_type": type(e).__name__,
 
             "error": str(e)
         }
 
 
 # ============================================================
-# DIRECT CREWAI TEST
-# ============================================================
-#
-# THIS IS THE IMPORTANT TEST.
-#
-# It tests:
-#
-# Render
-#   ↓
-# OPENROUTER_API_KEY
-#   ↓
-# CrewAI LLM
-#   ↓
-# LiteLLM
-#   ↓
-# OpenRouter
-#
-# without using the agents, tasks, Serper or Crew.
-#
-# TEMPORARY DEBUG ENDPOINT.
-# Remove after debugging.
+# DIRECT LITELLM TEST
 # ============================================================
 
-@app.get("/debug-crewai")
-@app.get("/debug-crewai/")
-async def debug_crewai():
+@app.get("/debug-litellm")
+@app.get("/debug-litellm/")
+async def debug_litellm_endpoint():
 
     print("")
     print("=" * 70)
-    print("CREWAI LLM DEBUG ENDPOINT")
+    print("DEBUG LITELLM ENDPOINT")
     print("=" * 70)
-
-    key = os.getenv(
-        "OPENROUTER_API_KEY"
-    )
-
-    print(
-        "OPENROUTER_API_KEY exists:",
-        bool(key)
-    )
-
-    if key:
-
-        print(
-            "OpenRouter key prefix:",
-            key[:15]
-        )
-
-        print(
-            "OpenRouter key length:",
-            len(key)
-        )
-
-    print("")
-    print("CrewAI version:", CREWAI_VERSION)
-    print(
-        "CrewAI Tools version:",
-        CREWAI_TOOLS_VERSION
-    )
-    print(
-        "LiteLLM version:",
-        LITELLM_VERSION
-    )
-    print(
-        "OpenAI version:",
-        OPENAI_VERSION
-    )
 
     try:
 
-        result = await debug_crewai_llm()
-
-        print("")
-        print("=" * 70)
-        print("CREWAI DEBUG SUCCESS")
-        print("=" * 70)
+        result = await debug_litellm()
 
         return {
 
-            "success": True,
-
-            "message": (
-                "CrewAI successfully called OpenRouter"
-            ),
+            "test": "LiteLLM -> OpenRouter",
 
             "result": result,
 
@@ -512,42 +238,40 @@ async def debug_crewai():
 
     except Exception as e:
 
-        print("")
-        print("=" * 70)
-        print("CREWAI DEBUG FAILED")
-        print("=" * 70)
-
-        print(
-            "Exception type:",
-            type(e).__name__
-        )
-
-        print(
-            "Exception:",
-            repr(e)
-        )
-
-        print(
-            "Message:",
-            str(e)
-        )
-
-        print("")
-        print("FULL TRACEBACK:")
-
         traceback.print_exc()
-
-        print("=" * 70)
 
         return {
 
             "success": False,
 
-            "error_type": (
-                type(e).__name__
-            ),
+            "error_type": type(e).__name__,
 
-            "error": str(e),
+            "error": str(e)
+        }
+
+
+# ============================================================
+# CREWAI LLM TEST
+# ============================================================
+
+@app.get("/debug-crewai")
+@app.get("/debug-crewai/")
+async def debug_crewai():
+
+    print("")
+    print("=" * 70)
+    print("DEBUG CREWAI ENDPOINT")
+    print("=" * 70)
+
+    try:
+
+        result = await debug_crewai_llm()
+
+        return {
+
+            "test": "CrewAI -> LiteLLM -> OpenRouter",
+
+            "result": result,
 
             "versions": {
 
@@ -559,6 +283,19 @@ async def debug_crewai():
 
                 "openai": OPENAI_VERSION
             }
+        }
+
+    except Exception as e:
+
+        traceback.print_exc()
+
+        return {
+
+            "success": False,
+
+            "error_type": type(e).__name__,
+
+            "error": str(e)
         }
 
 
@@ -593,31 +330,29 @@ async def generate(request: TripRequest):
     print("=" * 70)
 
     print(
-        "Starting city:",
+        "starting_city:",
         request.starting_city
     )
 
     print(
-        "Days:",
+        "days:",
         request.days
     )
 
     print(
-        "Travel style:",
+        "travel_style:",
         request.travel_style
     )
 
     print(
-        "Transport:",
+        "transport:",
         request.transport
     )
 
     print(
-        "Budget:",
+        "budget:",
         request.budget
     )
-
-    print("=" * 70)
 
     try:
 
@@ -634,11 +369,6 @@ async def generate(request: TripRequest):
             request.budget
         )
 
-        print("")
-        print("=" * 70)
-        print("TRIP GENERATION SUCCESSFUL")
-        print("=" * 70)
-
         return {
 
             "trip": result
@@ -648,28 +378,18 @@ async def generate(request: TripRequest):
 
         print("")
         print("=" * 70)
-        print("GENERATE-TRIP ERROR")
+        print("GENERATE TRIP FAILED")
         print("=" * 70)
 
         print(
-            "Exception type:",
+            "Exception:",
             type(e).__name__
         )
 
-        print("")
         print(
-            "Exception representation:",
-            repr(e)
-        )
-
-        print("")
-        print(
-            "Exception message:",
+            "Message:",
             str(e)
         )
-
-        print("")
-        print("FULL TRACEBACK:")
 
         traceback.print_exc()
 
