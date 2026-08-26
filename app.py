@@ -1,10 +1,8 @@
 import os
 import traceback
+import json
+
 import requests
-
-from dotenv import load_dotenv
-
-load_dotenv()
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -39,6 +37,26 @@ app.add_middleware(
 
 
 # ============================================================
+# ENVIRONMENT
+# ============================================================
+
+OPENROUTER_API_KEY = os.environ.get(
+    "OPENROUTER_API_KEY",
+    ""
+).strip()
+
+SERPER_API_KEY = os.environ.get(
+    "SERPER_API_KEY",
+    ""
+).strip()
+
+ORS_API_KEY = os.environ.get(
+    "ORS_API_KEY",
+    ""
+).strip()
+
+
+# ============================================================
 # ROOT
 # ============================================================
 
@@ -46,7 +64,8 @@ app.add_middleware(
 async def root():
 
     return {
-        "status": "FastAPI backend on Render is running!"
+        "status": "FastAPI backend on Render is running!",
+        "service": "AI Trip Planner"
     }
 
 
@@ -59,97 +78,81 @@ async def root():
 async def debug():
 
     return {
-        "status": "FastAPI backend connection verified!"
+
+        "status": "FastAPI backend connection verified!",
+
+        "environment": "Render" if os.environ.get("RENDER") else "unknown",
+
+        "openrouter_configured": bool(
+            OPENROUTER_API_KEY
+        ),
+
+        "serper_configured": bool(
+            SERPER_API_KEY
+        ),
+
+        "ors_configured": bool(
+            ORS_API_KEY
+        )
     }
 
 
 # ============================================================
-# DEBUG ENV
+# DEBUG ENVIRONMENT
 # ============================================================
 
 @app.get("/debug-env")
-@app.get("/debug-env/")
 async def debug_env():
 
-    openrouter_key = os.getenv(
-        "OPENROUTER_API_KEY",
-        ""
-    ).strip()
+    def key_info(key):
 
-    serper_key = os.getenv(
-        "SERPER_API_KEY",
-        ""
-    ).strip()
+        if not key:
 
-    ors_key = os.getenv(
-        "OPENROUTESERVICE_API_KEY",
-        ""
-    ).strip()
+            return {
+                "exists": False,
+                "length": 0,
+                "prefix": ""
+            }
+
+        return {
+
+            "exists": True,
+
+            "length": len(key),
+
+            "prefix": key[:15]
+        }
 
 
     return {
 
-        "render": os.getenv(
+        "render": os.environ.get(
             "RENDER",
             "false"
         ),
 
-        "openrouter": {
+        "openrouter": key_info(
+            OPENROUTER_API_KEY
+        ),
 
-            "exists": bool(openrouter_key),
+        "serper": key_info(
+            SERPER_API_KEY
+        ),
 
-            "length": len(openrouter_key),
-
-            "prefix": (
-                openrouter_key[:15]
-                if openrouter_key
-                else ""
-            ),
-        },
-
-        "serper": {
-
-            "exists": bool(serper_key),
-
-            "length": len(serper_key),
-
-            "prefix": (
-                serper_key[:10]
-                if serper_key
-                else ""
-            ),
-        },
-
-        "ors": {
-
-            "exists": bool(ors_key),
-
-            "length": len(ors_key),
-
-            "prefix": (
-                ors_key[:10]
-                if ors_key
-                else ""
-            ),
-        },
+        "ors": key_info(
+            ORS_API_KEY
+        )
     }
 
 
 # ============================================================
-# DIRECT OPENROUTER TEST
+# DEBUG OPENROUTER DIRECT
 # ============================================================
 
 @app.get("/debug-openrouter")
-@app.get("/debug-openrouter/")
 async def debug_openrouter():
 
-    key = os.getenv(
-        "OPENROUTER_API_KEY",
-        ""
-    ).strip()
-
-
-    if not key:
+    if not OPENROUTER_API_KEY:
 
         return {
 
@@ -157,7 +160,7 @@ async def debug_openrouter():
 
             "error": (
                 "OPENROUTER_API_KEY is missing"
-            ),
+            )
         }
 
 
@@ -170,123 +173,91 @@ async def debug_openrouter():
             headers={
 
                 "Authorization":
-                    f"Bearer {key}",
+                    f"Bearer {OPENROUTER_API_KEY}",
 
                 "Content-Type":
-                    "application/json",
+                    "application/json"
             },
 
-            timeout=20,
+            timeout=30
         )
 
 
         return {
 
-            "success":
-                response.status_code == 200,
+            "success": response.ok,
 
-            "status":
-                response.status_code,
+            "status": response.status_code,
 
-            "key_length":
-                len(key),
-
-            "key_prefix":
-                key[:15],
-
-            "response":
-                response.text[:3000],
+            "response": response.text[:5000]
         }
 
 
     except Exception as e:
 
-        traceback.print_exc()
-
         return {
 
             "success": False,
 
-            "error_type": type(e).__name__,
+            "error_type":
+                type(e).__name__,
 
-            "error": str(e),
+            "error":
+                str(e)
         }
 
 
 # ============================================================
-# LITELLM TEST
+# DEBUG LITELLM
 # ============================================================
 
 @app.get("/debug-litellm")
-@app.get("/debug-litellm/")
 async def debug_litellm():
-
-    key = os.getenv(
-        "OPENROUTER_API_KEY",
-        ""
-    ).strip()
-
-
-    if not key:
-
-        return {
-
-            "test":
-                "LiteLLM -> OpenRouter",
-
-            "result": {
-
-                "success": False,
-
-                "error":
-                    "OPENROUTER_API_KEY is missing",
-            },
-        }
-
 
     try:
 
-        os.environ[
-            "OPENROUTER_API_KEY"
-        ] = key
-
-
         from litellm import completion
 
+        print("=" * 70)
+        print("DEBUG LITELLM")
+        print("=" * 70)
 
-        result = completion(
+        print(
+            "OPENROUTER key exists:",
+            bool(OPENROUTER_API_KEY)
+        )
 
-            model=
-                "openrouter/z-ai/glm-5.3-flash",
+        print(
+            "OPENROUTER key length:",
+            len(OPENROUTER_API_KEY)
+        )
+
+        response = completion(
+
+            model="openrouter/openai/gpt-4o-mini",
 
             messages=[
 
                 {
-
                     "role": "user",
 
                     "content":
-                        "Reply with exactly OK",
+                        "Reply with exactly: LiteLLM test successful."
                 }
-
             ],
 
-            api_key=key,
+            api_key=OPENROUTER_API_KEY,
 
-            api_base=
-                "https://openrouter.ai/api/v1",
+            api_base="https://openrouter.ai/api/v1",
 
             temperature=0,
 
-            max_tokens=10,
+            max_tokens=50
         )
 
 
-        content = (
-            result.choices[0]
-            .message.content
-        )
-
+        print("LITELLM SUCCESS")
+        print(str(response)[:2000])
 
         return {
 
@@ -297,18 +268,25 @@ async def debug_litellm():
 
                 "success": True,
 
-                "response": content,
+                "response":
+                    str(response)[:5000]
             },
 
             "versions":
-                get_versions(),
+                get_versions()
         }
 
 
     except Exception as e:
 
-        traceback.print_exc()
+        print("=" * 70)
+        print("LITELLM TEST FAILED")
+        print("=" * 70)
 
+        print(type(e).__name__)
+        print(str(e))
+
+        traceback.print_exc()
 
         return {
 
@@ -323,51 +301,59 @@ async def debug_litellm():
                     type(e).__name__,
 
                 "error":
-                    str(e),
+                    str(e)
             },
 
             "versions":
-                get_versions(),
+                get_versions()
         }
 
 
 # ============================================================
-# CREWAI TEST
+# DEBUG CREWAI
 # ============================================================
 
 @app.get("/debug-crewai")
-@app.get("/debug-crewai/")
 async def debug_crewai():
 
     try:
 
-        from crew import test_crewai
+        print("=" * 70)
+        print("DEBUG CREWAI")
+        print("=" * 70)
 
-        result = await test_crewai()
+        from crew import test_crewai_llm
 
+        result = await test_crewai_llm()
 
         return {
 
             "test":
-                "CrewAI -> OpenRouter",
+                "CrewAI -> LiteLLM -> OpenRouter",
 
             "result":
                 result,
 
             "versions":
-                get_versions(),
+                get_versions()
         }
 
 
     except Exception as e:
 
-        traceback.print_exc()
+        print("=" * 70)
+        print("CREWAI DEBUG FAILED")
+        print("=" * 70)
 
+        print(type(e).__name__)
+        print(str(e))
+
+        traceback.print_exc()
 
         return {
 
             "test":
-                "CrewAI -> OpenRouter",
+                "CrewAI -> LiteLLM -> OpenRouter",
 
             "result": {
 
@@ -377,11 +363,11 @@ async def debug_crewai():
                     type(e).__name__,
 
                 "error":
-                    str(e),
+                    str(e)
             },
 
             "versions":
-                get_versions(),
+                get_versions()
         }
 
 
@@ -389,35 +375,72 @@ async def debug_crewai():
 # VERSION INFORMATION
 # ============================================================
 
-def get_version(package_name):
+def get_versions():
+
+    versions = {}
+
 
     try:
 
-        from importlib.metadata import version
+        import crewai
 
-        return version(package_name)
+        versions["crewai"] = getattr(
+            crewai,
+            "__version__",
+            "unknown"
+        )
 
     except Exception:
 
-        return "unknown"
+        versions["crewai"] = "unknown"
 
 
-def get_versions():
+    try:
 
-    return {
+        import crewai_tools
 
-        "crewai":
-            get_version("crewai"),
+        versions["crewai_tools"] = getattr(
+            crewai_tools,
+            "__version__",
+            "unknown"
+        )
 
-        "crewai_tools":
-            get_version("crewai-tools"),
+    except Exception:
 
-        "litellm":
-            get_version("litellm"),
+        versions["crewai_tools"] = "unknown"
 
-        "openai":
-            get_version("openai"),
-    }
+
+    try:
+
+        import litellm
+
+        versions["litellm"] = getattr(
+            litellm,
+            "__version__",
+            "unknown"
+        )
+
+    except Exception:
+
+        versions["litellm"] = "unknown"
+
+
+    try:
+
+        import openai
+
+        versions["openai"] = getattr(
+            openai,
+            "__version__",
+            "unknown"
+        )
+
+    except Exception:
+
+        versions["openai"] = "unknown"
+
+
+    return versions
 
 
 # ============================================================
@@ -449,8 +472,18 @@ async def generate(request: TripRequest):
     print("POST /generate-trip")
     print("=" * 70)
 
+    print(
+        "Request:",
+        request.model_dump()
+    )
+
 
     try:
+
+        # Import here instead of at application startup.
+        #
+        # This makes the API startup more robust and makes
+        # debugging much easier.
 
         from crew import generate_trip
 
@@ -465,8 +498,13 @@ async def generate(request: TripRequest):
 
             request.transport,
 
-            request.budget,
+            request.budget
         )
+
+
+        print("=" * 70)
+        print("GENERATE TRIP SUCCESS")
+        print("=" * 70)
 
 
         return {
@@ -478,20 +516,22 @@ async def generate(request: TripRequest):
     except Exception as e:
 
         print("=" * 70)
-        print("GENERATE TRIP ERROR")
+        print("❌ GENERATE TRIP ERROR")
         print("=" * 70)
 
         print(
-            "ERROR TYPE:",
+            "Error type:",
             type(e).__name__
         )
 
         print(
-            "ERROR:",
+            "Error:",
             str(e)
         )
 
         traceback.print_exc()
+
+        print("=" * 70)
 
 
         raise HTTPException(
