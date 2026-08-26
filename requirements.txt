@@ -1,10 +1,9 @@
-fastapi==0.141.1
-uvicorn[standard]==0.52.0
+fastapi
+uvicorn[standard]
 crewai==1.15.17
 crewai-tools==1.15.17
-litellm==1.98.0
-python-dotenv==1.2.3
-openai==2.54.0
-pydantic==2.12.5
-requests==2.34.0
-httpx==0.28.1
+python-dotenv
+requests
+httpx
+pydantic
+nest-asyncio
