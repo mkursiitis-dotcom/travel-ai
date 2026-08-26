@@ -1,10 +1,11 @@
 fastapi
 uvicorn[standard]
-crewai
-crewai-tools
+crewai==1.15.17
+crewai-tools==1.15.17
 python-dotenv
-openai
+openai==2.54.0
 pydantic
 nest-asyncio
 requests
 httpx
+litellm
