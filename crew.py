@@ -2,28 +2,44 @@ import os
 import importlib.metadata
 import traceback
 
-from crewai import Agent, Task, Crew, Process, LLM
-from crewai_tools import SerperDevTool
-
 
 # ============================================================
-# ENVIRONMENT
+# IMPORTANT:
+# Configure environment BEFORE importing CrewAI
 # ============================================================
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-SERPER_API_KEY = os.getenv("SERPER_API_KEY")
-ORS_API_KEY = os.getenv("ORS_API_KEY")
+
+if not OPENROUTER_API_KEY:
+    raise RuntimeError(
+        "OPENROUTER_API_KEY is not configured on Render."
+    )
+
+
+# Force the provider-specific environment variable.
+os.environ["OPENROUTER_API_KEY"] = OPENROUTER_API_KEY
+
+# OpenRouter is OpenAI-compatible.
+# These variables help libraries that use the OpenAI-compatible
+# configuration path.
+os.environ["OPENAI_API_BASE"] = "https://openrouter.ai/api/v1"
+
+
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+
+OPENROUTER_MODEL = "openrouter/openai/gpt-4o-mini"
 
 
 # ============================================================
-# VERSION INFORMATION
+# PACKAGE VERSIONS
 # ============================================================
 
-def get_package_version(package_name: str):
+def get_package_version(package_name):
+
     try:
         return importlib.metadata.version(package_name)
-    except Exception:
-        return "UNKNOWN"
+    except Exception as e:
+        return f"UNKNOWN: {e}"
 
 
 CREWAI_VERSION = get_package_version("crewai")
@@ -33,154 +49,341 @@ OPENAI_VERSION = get_package_version("openai")
 
 
 # ============================================================
-# SAFE ENVIRONMENT DEBUG
-# ============================================================
-
-def print_environment_debug():
-
-    print("")
-    print("=" * 70)
-    print("ENVIRONMENT DEBUG")
-    print("=" * 70)
-
-    print("RENDER:", os.getenv("RENDER", "NOT SET"))
-
-    print("")
-    print("OPENROUTER_API_KEY:")
-    print("  Exists:", bool(OPENROUTER_API_KEY))
-    print(
-        "  Length:",
-        len(OPENROUTER_API_KEY) if OPENROUTER_API_KEY else 0
-    )
-    print(
-        "  Prefix:",
-        OPENROUTER_API_KEY[:15]
-        if OPENROUTER_API_KEY
-        else "NONE"
-    )
-
-    print("")
-    print("SERPER_API_KEY:")
-    print("  Exists:", bool(SERPER_API_KEY))
-    print(
-        "  Length:",
-        len(SERPER_API_KEY) if SERPER_API_KEY else 0
-    )
-    print(
-        "  Prefix:",
-        SERPER_API_KEY[:10]
-        if SERPER_API_KEY
-        else "NONE"
-    )
-
-    print("")
-    print("ORS_API_KEY:")
-    print("  Exists:", bool(ORS_API_KEY))
-    print(
-        "  Length:",
-        len(ORS_API_KEY) if ORS_API_KEY else 0
-    )
-    print(
-        "  Prefix:",
-        ORS_API_KEY[:10]
-        if ORS_API_KEY
-        else "NONE"
-    )
-
-    print("")
-    print("PACKAGE VERSIONS:")
-    print("  crewai:", CREWAI_VERSION)
-    print("  crewai-tools:", CREWAI_TOOLS_VERSION)
-    print("  litellm:", LITELLM_VERSION)
-    print("  openai:", OPENAI_VERSION)
-
-    print("=" * 70)
-    print("END ENVIRONMENT DEBUG")
-    print("=" * 70)
-    print("")
-
-
-print_environment_debug()
-
-
-# ============================================================
-# OPENROUTER CONFIGURATION
-# ============================================================
-
-OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-OPENROUTER_MODEL = "openrouter/openai/gpt-4o-mini"
-
-
-# ============================================================
-# CREATE LLM
-# ============================================================
-
-def create_openrouter_llm():
-
-    print("")
-    print("=" * 70)
-    print("CREATING OPENROUTER LLM")
-    print("=" * 70)
-
-    print("Model:", OPENROUTER_MODEL)
-    print("Base URL:", OPENROUTER_BASE_URL)
-
-    print(
-        "API key exists:",
-        bool(OPENROUTER_API_KEY)
-    )
-
-    print(
-        "API key length:",
-        len(OPENROUTER_API_KEY)
-        if OPENROUTER_API_KEY
-        else 0
-    )
-
-    print(
-        "API key prefix:",
-        OPENROUTER_API_KEY[:15]
-        if OPENROUTER_API_KEY
-        else "NONE"
-    )
-
-    if not OPENROUTER_API_KEY:
-
-        raise RuntimeError(
-            "OPENROUTER_API_KEY is not configured."
-        )
-
-    llm = LLM(
-        model=OPENROUTER_MODEL,
-        api_key=OPENROUTER_API_KEY,
-        base_url=OPENROUTER_BASE_URL,
-        temperature=0.3,
-    )
-
-    print("LLM object created successfully.")
-
-    print("=" * 70)
-
-    return llm
-
-
-# ============================================================
-# MAIN LLM
-# ============================================================
-
-llm = create_openrouter_llm()
-
-
-# ============================================================
-# TOOLS
+# SAFE DEBUG
 # ============================================================
 
 print("")
-print("Initializing SerperDevTool...")
+print("=" * 70)
+print("STARTING CREW.PY")
+print("=" * 70)
+
+print("OPENROUTER_API_KEY exists:", bool(OPENROUTER_API_KEY))
+print("OPENROUTER_API_KEY length:", len(OPENROUTER_API_KEY))
+print("OPENROUTER_API_KEY prefix:", OPENROUTER_API_KEY[:15])
+
+print("")
+print("OPENAI_API_BASE:")
+print(os.getenv("OPENAI_API_BASE"))
+
+print("")
+print("VERSIONS:")
+print("CrewAI:", CREWAI_VERSION)
+print("CrewAI Tools:", CREWAI_TOOLS_VERSION)
+print("LiteLLM:", LITELLM_VERSION)
+print("OpenAI:", OPENAI_VERSION)
+
+print("=" * 70)
+
+
+# ============================================================
+# IMPORT CREWAI
+# ============================================================
+
+from crewai import Agent, Task, Crew, Process, LLM
+
+
+# ============================================================
+# IMPORT LITELLM
+# ============================================================
+
+try:
+
+    import litellm
+
+    print("")
+    print("=" * 70)
+    print("LITELLM IMPORT SUCCESS")
+    print("=" * 70)
+
+    print(
+        "LiteLLM version:",
+        getattr(litellm, "__version__", "UNKNOWN")
+    )
+
+    print(
+        "litellm.api_key exists:",
+        bool(getattr(litellm, "api_key", None))
+    )
+
+    print(
+        "litellm.openrouter_key exists:",
+        bool(getattr(litellm, "openrouter_key", None))
+    )
+
+    if getattr(litellm, "api_key", None):
+
+        print(
+            "WARNING: LiteLLM global api_key is set!"
+        )
+
+        print(
+            "Global api_key prefix:",
+            str(litellm.api_key)[:15]
+        )
+
+    if getattr(litellm, "openrouter_key", None):
+
+        print(
+            "OpenRouter key inside LiteLLM prefix:",
+            str(litellm.openrouter_key)[:15]
+        )
+
+    print("=" * 70)
+
+except Exception as e:
+
+    print("")
+    print("=" * 70)
+    print("LITELLM IMPORT FAILED")
+    print("=" * 70)
+
+    print(type(e).__name__)
+    print(str(e))
+
+    traceback.print_exc()
+
+    print("=" * 70)
+
+
+# ============================================================
+# DIRECT LITELLM TEST
+# ============================================================
+
+async def debug_litellm():
+
+    print("")
+    print("=" * 70)
+    print("DIRECT LITELLM TEST")
+    print("=" * 70)
+
+    try:
+
+        import litellm
+
+        print("Testing:")
+        print("LiteLLM -> OpenRouter")
+
+        print("")
+        print("Model:")
+        print(OPENROUTER_MODEL)
+
+        print("")
+        print("Environment:")
+        print(
+            "OPENROUTER_API_KEY exists:",
+            bool(os.getenv("OPENROUTER_API_KEY"))
+        )
+
+        print(
+            "OPENROUTER_API_KEY prefix:",
+            os.getenv("OPENROUTER_API_KEY")[:15]
+        )
+
+        print(
+            "OPENROUTER_API_KEY length:",
+            len(os.getenv("OPENROUTER_API_KEY"))
+        )
+
+        print("")
+        print("Calling litellm.acompletion()...")
+
+        response = await litellm.acompletion(
+
+            model=OPENROUTER_MODEL,
+
+            messages=[
+                {
+                    "role": "user",
+                    "content": "Reply with exactly: OK"
+                }
+            ],
+
+            api_key=OPENROUTER_API_KEY,
+
+            api_base=OPENROUTER_BASE_URL,
+
+            temperature=0
+        )
+
+        print("")
+        print("=" * 70)
+        print("DIRECT LITELLM TEST SUCCESS")
+        print("=" * 70)
+
+        print(
+            "Response:",
+            response
+        )
+
+        try:
+
+            content = response.choices[0].message.content
+
+            print("")
+            print("CONTENT:")
+            print(content)
+
+        except Exception:
+
+            pass
+
+        print("=" * 70)
+
+        return {
+            "success": True,
+            "content": (
+                response.choices[0].message.content
+                if response.choices
+                else str(response)
+            )
+        }
+
+    except Exception as e:
+
+        print("")
+        print("=" * 70)
+        print("DIRECT LITELLM TEST FAILED")
+        print("=" * 70)
+
+        print(
+            "Exception type:",
+            type(e).__name__
+        )
+
+        print(
+            "Exception:",
+            repr(e)
+        )
+
+        print(
+            "Message:",
+            str(e)
+        )
+
+        print("")
+        print("FULL TRACEBACK:")
+
+        traceback.print_exc()
+
+        print("=" * 70)
+
+        return {
+            "success": False,
+            "error_type": type(e).__name__,
+            "error": str(e)
+        }
+
+
+# ============================================================
+# CREATE CREWAI LLM
+# ============================================================
+
+print("")
+print("=" * 70)
+print("CREATING CREWAI LLM")
+print("=" * 70)
+
+llm = LLM(
+
+    model=OPENROUTER_MODEL,
+
+    api_key=OPENROUTER_API_KEY,
+
+    base_url=OPENROUTER_BASE_URL,
+
+    temperature=0.3
+)
+
+print("CrewAI LLM created.")
+
+print("=" * 70)
+
+
+# ============================================================
+# CREWAI LLM TEST
+# ============================================================
+
+async def debug_crewai_llm():
+
+    print("")
+    print("=" * 70)
+    print("CREWAI LLM TEST")
+    print("=" * 70)
+
+    try:
+
+        print(
+            "Testing CrewAI LLM -> LiteLLM -> OpenRouter"
+        )
+
+        print("")
+        print(
+            "Calling llm.call()..."
+        )
+
+        result = llm.call(
+            "Reply with exactly: OK"
+        )
+
+        print("")
+        print("=" * 70)
+        print("CREWAI LLM TEST SUCCESS")
+        print("=" * 70)
+
+        print("Result:")
+        print(result)
+
+        print("=" * 70)
+
+        return {
+            "success": True,
+            "result": str(result)
+        }
+
+    except Exception as e:
+
+        print("")
+        print("=" * 70)
+        print("CREWAI LLM TEST FAILED")
+        print("=" * 70)
+
+        print(
+            "Exception type:",
+            type(e).__name__
+        )
+
+        print(
+            "Exception:",
+            repr(e)
+        )
+
+        print(
+            "Message:",
+            str(e)
+        )
+
+        print("")
+        print("FULL TRACEBACK:")
+
+        traceback.print_exc()
+
+        print("=" * 70)
+
+        return {
+            "success": False,
+            "error_type": type(e).__name__,
+            "error": str(e)
+        }
+
+
+# ============================================================
+# SERPER
+# ============================================================
+
+from crewai_tools import SerperDevTool
+
 
 search_tool = SerperDevTool()
-
-print("SerperDevTool initialized.")
 
 
 # ============================================================
@@ -188,6 +391,7 @@ print("SerperDevTool initialized.")
 # ============================================================
 
 planner = Agent(
+
     role="Latvijas ceļojumu plānotājs",
 
     goal=(
@@ -205,11 +409,13 @@ nepavadītu pārāk daudz laika transportā.
 """,
 
     llm=llm,
+
     verbose=True
 )
 
 
 guide_logistics = Agent(
+
     role="Latvijas tūrisma un loģistikas eksperts",
 
     goal=(
@@ -226,12 +432,15 @@ Tu veido praktiskus plānus ar reālām izmaksām.
 """,
 
     tools=[search_tool],
+
     llm=llm,
+
     verbose=True
 )
 
 
 reviewer = Agent(
+
     role="Ceļojumu plāna redaktors",
 
     goal=(
@@ -246,6 +455,7 @@ un izveido skaidras Markdown tabulas.
 """,
 
     llm=llm,
+
     verbose=True
 )
 
@@ -255,6 +465,7 @@ un izveido skaidras Markdown tabulas.
 # ============================================================
 
 task1 = Task(
+
     description="""
 Izveido {days} dienu Latvijas ceļojuma konceptu.
 
@@ -272,7 +483,6 @@ Transports:
 Budžets:
 {budget}
 
-
 Prasības:
 
 - Katrai dienai norādi galveno reģionu.
@@ -289,6 +499,7 @@ Prasības:
 
 
 task2 = Task(
+
     description="""
 Izveido detalizētu {days} dienu ceļojuma plānu.
 
@@ -305,7 +516,6 @@ Transports:
 
 Budžets:
 {budget}
-
 
 Iekļauj:
 
@@ -325,6 +535,7 @@ Iekļauj:
 
 
 task3 = Task(
+
     description="""
 Izveido gala ceļojuma plānu Markdown formātā.
 
@@ -343,7 +554,6 @@ Pēc katras dienas pievieno:
 - Vakariņas:
 - Naktsmītne:
 
-
 Beigās pievieno:
 
 ## Aptuvenās izmaksas
@@ -353,7 +563,6 @@ Beigās pievieno:
 - Naktsmītnes
 - Ieejas maksas
 - Kopā
-
 
 Un praktiskus ceļošanas padomus.
 """,
@@ -370,12 +579,8 @@ Un praktiskus ceļošanas padomus.
 # CREW
 # ============================================================
 
-print("")
-print("=" * 70)
-print("INITIALIZING CREW")
-print("=" * 70)
-
 crew = Crew(
+
     agents=[
         planner,
         guide_logistics,
@@ -393,168 +598,40 @@ crew = Crew(
     verbose=True
 )
 
-print("Crew initialized successfully.")
-
-print("=" * 70)
-
-
-# ============================================================
-# DEBUG CREWAI LLM
-# ============================================================
-
-async def debug_crewai_llm():
-
-    print("")
-    print("=" * 70)
-    print("DEBUG CREWAI LLM")
-    print("=" * 70)
-
-    print("Testing:")
-    print("CrewAI -> LLM -> OpenRouter")
-
-    print("")
-    print("Model:", OPENROUTER_MODEL)
-    print("Base URL:", OPENROUTER_BASE_URL)
-
-    print(
-        "API key exists:",
-        bool(OPENROUTER_API_KEY)
-    )
-
-    print(
-        "API key length:",
-        len(OPENROUTER_API_KEY)
-        if OPENROUTER_API_KEY
-        else 0
-    )
-
-    print(
-        "API key prefix:",
-        OPENROUTER_API_KEY[:15]
-        if OPENROUTER_API_KEY
-        else "NONE"
-    )
-
-    if not OPENROUTER_API_KEY:
-
-        raise RuntimeError(
-            "OPENROUTER_API_KEY is not configured."
-        )
-
-    try:
-
-        test_llm = create_openrouter_llm()
-
-        print("")
-        print("Calling CrewAI LLM...")
-        print("Prompt: Reply with exactly: OK")
-
-        # CrewAI's LLM object uses LiteLLM underneath.
-        # Calling call() gives us a direct test of the LLM
-        # without running the agents/tasks.
-
-        result = test_llm.call(
-            "Reply with exactly: OK"
-        )
-
-        print("")
-        print("CREWAI LLM TEST SUCCESSFUL")
-        print("Result:", result)
-
-        print("=" * 70)
-
-        return {
-            "success": True,
-            "result": str(result)
-        }
-
-    except Exception as e:
-
-        print("")
-        print("=" * 70)
-        print("CREWAI LLM TEST FAILED")
-        print("=" * 70)
-
-        print("Exception type:")
-        print(type(e).__name__)
-
-        print("")
-        print("Exception representation:")
-        print(repr(e))
-
-        print("")
-        print("Exception message:")
-        print(str(e))
-
-        print("")
-        print("FULL TRACEBACK:")
-
-        traceback.print_exc()
-
-        print("=" * 70)
-
-        raise
-
 
 # ============================================================
 # GENERATE TRIP
 # ============================================================
 
 async def generate_trip(
+
     starting_city: str,
+
     days: int,
+
     travel_style: str,
+
     transport: str,
+
     budget: str
 ):
 
-    print("")
-    print("=" * 70)
-    print("GENERATE TRIP STARTED")
-    print("=" * 70)
-
-    print("Starting city:", starting_city)
-    print("Days:", days)
-    print("Travel style:", travel_style)
-    print("Transport:", transport)
-    print("Budget:", budget)
-
-    print("")
-    print(
-        "OpenRouter key configured:",
-        bool(OPENROUTER_API_KEY)
-    )
-
-    if OPENROUTER_API_KEY:
-
-        print(
-            "OpenRouter key prefix:",
-            OPENROUTER_API_KEY[:15]
-        )
-
-        print(
-            "OpenRouter key length:",
-            len(OPENROUTER_API_KEY)
-        )
-
-    else:
-
-        print("OpenRouter key: NONE")
-
     inputs = {
+
         "starting_city": starting_city,
+
         "days": days,
+
         "travel_style": travel_style,
+
         "transport": transport,
+
         "budget": budget
     }
 
     print("")
-    print("CrewAI inputs:")
-    print(inputs)
-
-    print("")
-    print("Starting crew.kickoff_async()...")
+    print("=" * 70)
+    print("STARTING CREW")
     print("=" * 70)
 
     try:
@@ -565,21 +642,7 @@ async def generate_trip(
 
         print("")
         print("=" * 70)
-        print("CREWAI COMPLETED SUCCESSFULLY")
-        print("=" * 70)
-
-        print(
-            "Result type:",
-            type(result).__name__
-        )
-
-        if hasattr(result, "raw"):
-
-            print(
-                "Raw result length:",
-                len(result.raw)
-            )
-
+        print("CREW SUCCESS")
         print("=" * 70)
 
         return result.raw
@@ -588,28 +651,18 @@ async def generate_trip(
 
         print("")
         print("=" * 70)
-        print("CREWAI ERROR")
+        print("CREW ERROR")
         print("=" * 70)
 
         print(
-            "Exception type:",
+            "Type:",
             type(e).__name__
         )
 
-        print("")
         print(
-            "Exception representation:",
-            repr(e)
-        )
-
-        print("")
-        print(
-            "Exception message:",
+            "Error:",
             str(e)
         )
-
-        print("")
-        print("FULL TRACEBACK:")
 
         traceback.print_exc()
 
