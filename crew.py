@@ -1,169 +1,84 @@
-# ============================================================
-# crew.py
-# ============================================================
-
 import os
-import requests
+import traceback
+
 from dotenv import load_dotenv
 
-# ------------------------------------------------------------
-# Load environment variables FIRST
-# ------------------------------------------------------------
-
 load_dotenv()
-
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-SERPER_API_KEY = os.getenv("SERPER_API_KEY")
-
-if not OPENROUTER_API_KEY:
-    raise RuntimeError("OPENROUTER_API_KEY is not set")
-
-if not SERPER_API_KEY:
-    print("WARNING: SERPER_API_KEY is not set")
-
-
-# ============================================================
-# IMPORTANT:
-# Configure LiteLLM/OpenRouter explicitly BEFORE importing
-# CrewAI components.
-# ============================================================
-
-os.environ["OPENROUTER_API_KEY"] = OPENROUTER_API_KEY
-
-# LiteLLM sometimes looks for OPENAI_API_KEY depending on
-# the provider/model configuration.
-#
-# We deliberately DO NOT put the OpenRouter key into
-# OPENAI_API_KEY because that can cause provider confusion.
-#
-# Instead we use the explicit OpenRouter API base below.
-
-OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-
-
-# ============================================================
-# Imports
-# ============================================================
 
 from crewai import Agent, Task, Crew, Process, LLM
 from crewai_tools import SerperDevTool
 
 
 # ============================================================
-# DEBUG INFORMATION
+# CONFIGURATION
 # ============================================================
 
-print("=" * 60)
-print("CREW.PY INITIALIZATION")
-print("=" * 60)
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "").strip()
 
-print("OPENROUTER_API_KEY exists:",
-      bool(os.getenv("OPENROUTER_API_KEY")))
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+
+OPENROUTER_MODEL = "z-ai/glm-5.3-flash"
+
+
+print("=" * 70)
+print("CREW.PY START")
+print("=" * 70)
+
+print("OPENROUTER_API_KEY exists:", bool(OPENROUTER_API_KEY))
+print("OPENROUTER_API_KEY length:", len(OPENROUTER_API_KEY))
 
 if OPENROUTER_API_KEY:
     print(
         "OPENROUTER_API_KEY prefix:",
         OPENROUTER_API_KEY[:15]
     )
-    print(
-        "OPENROUTER_API_KEY length:",
-        len(OPENROUTER_API_KEY)
+else:
+    print("OPENROUTER_API_KEY prefix: EMPTY")
+
+print("OPENROUTER_BASE_URL:", OPENROUTER_BASE_URL)
+print("OPENROUTER_MODEL:", OPENROUTER_MODEL)
+
+print("=" * 70)
+
+
+if not OPENROUTER_API_KEY:
+    raise RuntimeError(
+        "OPENROUTER_API_KEY is missing."
     )
-
-print("SERPER_API_KEY exists:",
-      bool(os.getenv("SERPER_API_KEY")))
-
-print("OPENROUTER_BASE_URL:",
-      OPENROUTER_BASE_URL)
-
-print("=" * 60)
-
-
-# ============================================================
-# DIRECT OPENROUTER TEST
-# ============================================================
-
-def test_openrouter_direct():
-
-    print("=" * 60)
-    print("DIRECT OPENROUTER TEST")
-    print("=" * 60)
-
-    try:
-
-        response = requests.get(
-            "https://openrouter.ai/api/v1/models",
-            headers={
-                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                "Content-Type": "application/json",
-            },
-            timeout=20,
-        )
-
-        print("Status:", response.status_code)
-
-        print(
-            "Response preview:",
-            response.text[:500]
-        )
-
-        if response.status_code == 200:
-
-            print("DIRECT OPENROUTER TEST: SUCCESS")
-
-            return {
-                "success": True,
-                "status": response.status_code,
-                "response": response.text[:1000],
-            }
-
-        print("DIRECT OPENROUTER TEST: FAILED")
-
-        return {
-            "success": False,
-            "status": response.status_code,
-            "response": response.text[:1000],
-        }
-
-    except Exception as e:
-
-        print(
-            "DIRECT OPENROUTER TEST EXCEPTION:",
-            repr(e)
-        )
-
-        return {
-            "success": False,
-            "error": repr(e),
-        }
 
 
 # ============================================================
 # LLM
 # ============================================================
 
-# IMPORTANT:
 #
-# We explicitly provide the API key and API base to CrewAI's LLM
-# rather than relying only on environment autodetection.
+# IMPORTANT
 #
-# OpenRouter model:
+# We explicitly provide:
 #
-# openrouter/openai/gpt-4o-mini
+#   api_key
+#   base_url
 #
-# If this particular model causes problems, we can switch it
-# later to another model available through OpenRouter.
+# We do NOT rely on LiteLLM automatically discovering the key.
+#
+# CrewAI's LLM interface internally uses the configured
+# OpenAI-compatible endpoint.
+#
 
 llm = LLM(
-    model="openrouter/openai/gpt-4o-mini",
+    model=f"openrouter/{OPENROUTER_MODEL}",
     api_key=OPENROUTER_API_KEY,
     base_url=OPENROUTER_BASE_URL,
     temperature=0.3,
 )
 
 
+print("CrewAI LLM configured.")
+print("=" * 70)
+
+
 # ============================================================
-# SERPER TOOL
+# TOOLS
 # ============================================================
 
 search_tool = SerperDevTool()
@@ -174,6 +89,7 @@ search_tool = SerperDevTool()
 # ============================================================
 
 planner = Agent(
+
     role="Latvijas ceļojumu plānotājs",
 
     goal=(
@@ -184,11 +100,13 @@ planner = Agent(
     backstory="""
 Tu esi pieredzējis Latvijas tūrisma plānotājs.
 
-Tu labi pārzini Latvijas pilsētas, reģionus,
-dabas objektus, pilis un apskates vietas.
+Tu labi pārzini Latvijas pilsētas,
+reģionus, dabas objektus, pilis
+un apskates vietas.
 
-Tu veido loģiskus maršrutus, lai ceļotājs
-nepavadītu pārāk daudz laika transportā.
+Tu veido loģiskus maršrutus,
+lai ceļotājs nepavadītu pārāk daudz
+laika transportā.
 """,
 
     llm=llm,
@@ -202,6 +120,7 @@ nepavadītu pārāk daudz laika transportā.
 # ============================================================
 
 guide_logistics = Agent(
+
     role="Latvijas tūrisma un loģistikas eksperts",
 
     goal=(
@@ -212,10 +131,12 @@ guide_logistics = Agent(
     backstory="""
 Tu esi Latvijas ceļojumu eksperts.
 
-Tu pārzini apskates vietas, restorānus,
-naktsmītnes un ceļu loģistiku.
+Tu pārzini apskates vietas,
+restorānus, naktsmītnes
+un ceļu loģistiku.
 
-Tu veido praktiskus plānus ar reālām izmaksām.
+Tu veido praktiskus plānus
+ar reālām izmaksām.
 """,
 
     tools=[search_tool],
@@ -231,18 +152,22 @@ Tu veido praktiskus plānus ar reālām izmaksām.
 # ============================================================
 
 reviewer = Agent(
+
     role="Ceļojumu plāna redaktors",
 
     goal=(
-        "Izveidot profesionālu gala ceļojuma "
-        "plānu Markdown formātā."
+        "Izveidot profesionālu gala "
+        "ceļojuma plānu Markdown formātā."
     ),
 
     backstory="""
 Tu esi rūpīgs tūrisma satura redaktors.
 
-Tu pārbaudi, lai dienu skaits būtu pareizs,
-un izveido skaidras Markdown tabulas.
+Tu pārbaudi, lai dienu skaits
+būtu pareizs.
+
+Tu izveido skaidras Markdown tabulas
+un praktisku gala ceļojuma plānu.
 """,
 
     llm=llm,
@@ -256,6 +181,7 @@ un izveido skaidras Markdown tabulas.
 # ============================================================
 
 task1 = Task(
+
     description="""
 Izveido {days} dienu Latvijas ceļojuma konceptu.
 
@@ -293,6 +219,7 @@ Prasības:
 # ============================================================
 
 task2 = Task(
+
     description="""
 Izveido detalizētu {days} dienu ceļojuma plānu.
 
@@ -332,6 +259,7 @@ Iekļauj:
 # ============================================================
 
 task3 = Task(
+
     description="""
 Izveido gala ceļojuma plānu Markdown formātā.
 
@@ -349,6 +277,7 @@ Pēc katras dienas pievieno:
 - Pusdienas:
 - Vakariņas:
 - Naktsmītne:
+
 
 Beigās pievieno:
 
@@ -376,6 +305,7 @@ Un praktiskus ceļošanas padomus.
 # ============================================================
 
 crew = Crew(
+
     agents=[
         planner,
         guide_logistics,
@@ -395,58 +325,162 @@ crew = Crew(
 
 
 # ============================================================
+# SIMPLE CREWAI TEST
+# ============================================================
+
+async def test_crewai():
+
+    print("=" * 70)
+    print("CREWAI TEST START")
+    print("=" * 70)
+
+    try:
+
+        test_agent = Agent(
+
+            role="Test assistant",
+
+            goal="Test whether the configured LLM can answer.",
+
+            backstory="""
+Tu esi tehnisks testa asistents.
+Atbildi ļoti īsi.
+""",
+
+            llm=llm,
+
+            verbose=True,
+        )
+
+
+        test_task = Task(
+
+            description=(
+                "Atbildi tikai ar vārdu OK."
+            ),
+
+            expected_output="OK",
+
+            agent=test_agent,
+        )
+
+
+        test_crew = Crew(
+
+            agents=[test_agent],
+
+            tasks=[test_task],
+
+            process=Process.sequential,
+
+            verbose=True,
+        )
+
+
+        result = await test_crew.kickoff_async()
+
+
+        print("=" * 70)
+        print("CREWAI TEST SUCCESS")
+        print("=" * 70)
+
+        return {
+
+            "success": True,
+
+            "result": str(result),
+        }
+
+
+    except Exception as e:
+
+        print("=" * 70)
+        print("CREWAI TEST FAILED")
+        print("=" * 70)
+
+        print("ERROR TYPE:", type(e).__name__)
+        print("ERROR:", str(e))
+
+        traceback.print_exc()
+
+        return {
+
+            "success": False,
+
+            "error_type": type(e).__name__,
+
+            "error": str(e),
+        }
+
+
+# ============================================================
 # GENERATE TRIP
 # ============================================================
 
 async def generate_trip(
+
     starting_city: str,
+
     days: int,
+
     travel_style: str,
+
     transport: str,
+
     budget: str,
+
 ):
 
-    print("=" * 60)
-    print("GENERATE_TRIP STARTED")
-    print("=" * 60)
+    print("=" * 70)
+    print("GENERATE TRIP START")
+    print("=" * 70)
+
+    print("Starting city:", starting_city)
+    print("Days:", days)
+    print("Travel style:", travel_style)
+    print("Transport:", transport)
+    print("Budget:", budget)
+
 
     inputs = {
+
         "starting_city": starting_city,
+
         "days": days,
+
         "travel_style": travel_style,
+
         "transport": transport,
+
         "budget": budget,
     }
 
-    print("Inputs:", inputs)
 
     try:
 
-        print("Calling CrewAI kickoff_async...")
-
         result = await crew.kickoff_async(
+
             inputs=inputs
         )
 
-        print("CrewAI completed successfully.")
+
+        print("=" * 70)
+        print("GENERATE TRIP SUCCESS")
+        print("=" * 70)
+
 
         return result.raw
 
+
     except Exception as e:
 
-        print("=" * 60)
-        print("CREWAI ERROR")
-        print("=" * 60)
+        print("=" * 70)
+        print("GENERATE TRIP FAILED")
+        print("=" * 70)
 
-        print("Exception type:")
-        print(type(e).__name__)
+        print("ERROR TYPE:", type(e).__name__)
+        print("ERROR:", str(e))
 
-        print("Exception:")
-        print(str(e))
-
-        print("repr:")
-        print(repr(e))
-
-        print("=" * 60)
+        traceback.print_exc()
 
         raise
