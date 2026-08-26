@@ -1,4 +1,9 @@
+# ============================================================
+# app.py
+# ============================================================
+
 import os
+import sys
 import traceback
 import requests
 
@@ -6,14 +11,14 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from crew import (
-    generate_trip,
-    debug_direct_openrouter,
-    debug_crewai_llm,
-    CREWAI_VERSION,
-    CREWAI_TOOLS_VERSION,
-    OPENAI_VERSION,
-)
+
+# ============================================================
+# ENVIRONMENT
+# ============================================================
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 # ============================================================
@@ -30,7 +35,6 @@ app = FastAPI(
 # ============================================================
 
 app.add_middleware(
-
     CORSMiddleware,
 
     allow_origins=["*"],
@@ -44,157 +48,107 @@ app.add_middleware(
 
 
 # ============================================================
-# STARTUP
-# ============================================================
-
-@app.on_event("startup")
-async def startup_event():
-
-    print("")
-    print("=" * 70)
-    print("AI TRIP PLANNER BACKEND STARTED")
-    print("=" * 70)
-
-    key = os.getenv(
-        "OPENROUTER_API_KEY"
-    )
-
-    print(
-        "OPENROUTER_API_KEY exists:",
-        bool(key)
-    )
-
-    if key:
-
-        print(
-            "Key prefix:",
-            key[:15]
-        )
-
-        print(
-            "Key length:",
-            len(key)
-        )
-
-    print("")
-    print("Versions:")
-
-    print(
-        "CrewAI:",
-        CREWAI_VERSION
-    )
-
-    print(
-        "CrewAI Tools:",
-        CREWAI_TOOLS_VERSION
-    )
-
-    print(
-        "OpenAI:",
-        OPENAI_VERSION
-    )
-
-    print("")
-    print("Architecture:")
-    print(
-        "CrewAI -> Custom DirectOpenRouterLLM -> OpenAI client -> OpenRouter"
-    )
-
-    print(
-        "LiteLLM: NOT USED BY CUSTOM LLM"
-    )
-
-    print("=" * 70)
-
-
-# ============================================================
-# ROOT
+# BASIC ROUTES
 # ============================================================
 
 @app.get("/")
 async def root():
 
     return {
-
-        "status":
-        "FastAPI backend on Render is running!"
+        "status": "FastAPI backend on Render is running!"
     }
 
-
-# ============================================================
-# BASIC DEBUG
-# ============================================================
 
 @app.get("/debug")
 @app.get("/debug/")
 async def debug():
 
     return {
-
-        "status":
-        "FastAPI backend connection verified!"
+        "status": "FastAPI backend connection verified!"
     }
 
 
 # ============================================================
-# DEBUG ENV
+# DEBUG ENVIRONMENT
 # ============================================================
 
 @app.get("/debug-env")
-@app.get("/debug-env/")
 async def debug_env():
 
-    key = os.getenv(
+    openrouter = os.getenv(
         "OPENROUTER_API_KEY"
+    )
+
+    serper = os.getenv(
+        "SERPER_API_KEY"
+    )
+
+    ors = os.getenv(
+        "ORS_API_KEY"
     )
 
     return {
 
-        "render":
-        os.getenv(
+        "render": os.getenv(
             "RENDER",
-            "NOT SET"
+            "false"
         ),
 
         "openrouter": {
+            "exists": bool(openrouter),
 
-            "exists":
-            bool(key),
+            "length": (
+                len(openrouter)
+                if openrouter
+                else 0
+            ),
 
-            "length":
-            len(key)
-            if key
-            else 0,
-
-            "prefix":
-            key[:15]
-            if key
-            else None
+            "prefix": (
+                openrouter[:15]
+                if openrouter
+                else None
+            ),
         },
 
-        "versions": {
+        "serper": {
+            "exists": bool(serper),
 
-            "crewai":
-            CREWAI_VERSION,
+            "length": (
+                len(serper)
+                if serper
+                else 0
+            ),
 
-            "crewai_tools":
-            CREWAI_TOOLS_VERSION,
-
-            "openai":
-            OPENAI_VERSION
+            "prefix": (
+                serper[:10]
+                if serper
+                else None
+            ),
         },
 
-        "architecture":
-        "CrewAI -> DirectOpenRouterLLM -> OpenAI -> OpenRouter"
+        "ors": {
+            "exists": bool(ors),
+
+            "length": (
+                len(ors)
+                if ors
+                else 0
+            ),
+
+            "prefix": (
+                ors[:10]
+                if ors
+                else None
+            ),
+        },
     }
 
 
 # ============================================================
-# DIRECT OPENROUTER TEST
+# DEBUG OPENROUTER DIRECT
 # ============================================================
 
 @app.get("/debug-openrouter")
-@app.get("/debug-openrouter/")
 async def debug_openrouter():
 
     key = os.getenv(
@@ -204,13 +158,9 @@ async def debug_openrouter():
     if not key:
 
         return {
-
             "success": False,
-
-            "error":
-            "OPENROUTER_API_KEY missing"
+            "error": "OPENROUTER_API_KEY is missing"
         }
-
 
     try:
 
@@ -219,27 +169,23 @@ async def debug_openrouter():
             "https://openrouter.ai/api/v1/models",
 
             headers={
-
-                "Authorization":
-                f"Bearer {key}"
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
             },
 
-            timeout=30
+            timeout=20,
         )
-
 
         return {
 
-            "success":
-            response.status_code == 200,
+            "success": (
+                response.status_code == 200
+            ),
 
-            "status":
-            response.status_code,
+            "status": response.status_code,
 
-            "response":
-            response.text[:1000]
+            "response": response.text[:3000],
         }
-
 
     except Exception as e:
 
@@ -247,136 +193,322 @@ async def debug_openrouter():
 
             "success": False,
 
-            "error_type":
-            type(e).__name__,
+            "error_type": type(e).__name__,
 
-            "error":
-            str(e)
+            "error": str(e),
         }
 
 
 # ============================================================
-# DIRECT OPENROUTER CHAT TEST
-# ============================================================
-#
-# This is different from /debug-openrouter.
-#
-# /debug-openrouter only asks OpenRouter for /models.
-#
-# This endpoint actually sends an AI prompt.
-#
-# It uses the OpenAI client directly.
+# DEBUG LITELLM
 # ============================================================
 
-@app.get("/debug-direct-openrouter")
-@app.get("/debug-direct-openrouter/")
-async def debug_direct_openrouter_endpoint():
+@app.get("/debug-litellm")
+async def debug_litellm():
 
-    print("")
-    print("=" * 70)
-    print("DEBUG DIRECT OPENROUTER CHAT")
-    print("=" * 70)
+    key = os.getenv(
+        "OPENROUTER_API_KEY"
+    )
+
+    if not key:
+
+        return {
+            "test": "LiteLLM -> OpenRouter",
+
+            "result": {
+                "success": False,
+
+                "error": (
+                    "OPENROUTER_API_KEY is missing"
+                ),
+            },
+        }
 
     try:
 
-        result = await debug_direct_openrouter()
+        # Import only here so we can clearly see whether
+        # LiteLLM itself is responsible for the failure.
+
+        import litellm
+
+        print("=" * 60)
+        print("DEBUG LITELLM")
+        print("=" * 60)
+
+        print(
+            "LiteLLM version:",
+            getattr(
+                litellm,
+                "__version__",
+                "unknown"
+            )
+        )
+
+        print(
+            "OpenRouter key prefix:",
+            key[:15]
+        )
+
+        print(
+            "OpenRouter key length:",
+            len(key)
+        )
+
+        print("=" * 60)
+
+        result = litellm.completion(
+
+            model="openrouter/openai/gpt-4o-mini",
+
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        "Reply with exactly: "
+                        "LITELLM TEST OK"
+                    ),
+                }
+            ],
+
+            api_key=key,
+
+            api_base=(
+                "https://openrouter.ai/api/v1"
+            ),
+
+            max_tokens=20,
+        )
 
         return {
 
-            "test":
-            "OpenAI client -> OpenRouter",
+            "test": "LiteLLM -> OpenRouter",
 
-            "result":
-            result,
+            "result": {
+                "success": True,
+
+                "response": str(
+                    result
+                )[:3000],
+            },
 
             "versions": {
-
-                "crewai":
-                CREWAI_VERSION,
-
-                "crewai_tools":
-                CREWAI_TOOLS_VERSION,
-
-                "openai":
-                OPENAI_VERSION
-            }
+                "litellm": getattr(
+                    litellm,
+                    "__version__",
+                    "unknown"
+                ),
+            },
         }
-
 
     except Exception as e:
 
+        print("=" * 60)
+        print("LITELLM TEST FAILED")
+        print("=" * 60)
+
+        print(
+            "TYPE:",
+            type(e).__name__
+        )
+
+        print(
+            "ERROR:",
+            str(e)
+        )
+
         traceback.print_exc()
+
+        print("=" * 60)
+
+        versions = {}
+
+        try:
+            import litellm
+
+            versions["litellm"] = getattr(
+                litellm,
+                "__version__",
+                "unknown"
+            )
+
+        except Exception:
+            pass
+
+        try:
+            import crewai
+
+            versions["crewai"] = getattr(
+                crewai,
+                "__version__",
+                "unknown"
+            )
+
+        except Exception:
+            pass
+
+        try:
+            import openai
+
+            versions["openai"] = getattr(
+                openai,
+                "__version__",
+                "unknown"
+            )
+
+        except Exception:
+            pass
 
         return {
 
-            "success": False,
+            "test": "LiteLLM -> OpenRouter",
 
-            "error_type":
-            type(e).__name__,
+            "result": {
 
-            "error":
-            str(e)
+                "success": False,
+
+                "error_type": type(e).__name__,
+
+                "error": str(e),
+            },
+
+            "versions": versions,
         }
 
 
 # ============================================================
-# CREWAI DIRECT LLM TEST
+# DEBUG CREWAI
 # ============================================================
 
 @app.get("/debug-crewai")
-@app.get("/debug-crewai/")
 async def debug_crewai():
-
-    print("")
-    print("=" * 70)
-    print("DEBUG CREWAI DIRECT LLM")
-    print("=" * 70)
 
     try:
 
-        result = await debug_crewai_llm()
+        print("=" * 60)
+        print("DEBUG CREWAI")
+        print("=" * 60)
+
+        # Import our CrewAI objects.
+
+        from crew import llm
+
+        print(
+            "CrewAI LLM object created successfully."
+        )
+
+        print(
+            "LLM object:",
+            repr(llm)
+        )
+
+        print(
+            "Calling LLM directly..."
+        )
+
+        # CrewAI's LLM object can be called directly.
+        #
+        # This is a much smaller test than running the
+        # entire travel-planning Crew.
+
+        result = llm.call(
+            "Reply with exactly: CREWAI TEST OK"
+        )
+
+        print(
+            "CrewAI LLM call succeeded."
+        )
 
         return {
 
-            "test":
-            "CrewAI -> DirectOpenRouterLLM -> OpenRouter",
+            "test": (
+                "CrewAI -> LiteLLM -> OpenRouter"
+            ),
 
-            "result":
-            result,
+            "result": {
 
-            "uses_litellm":
-            False,
+                "success": True,
 
-            "versions": {
+                "response": str(
+                    result
+                )[:3000],
+            },
 
-                "crewai":
-                CREWAI_VERSION,
-
-                "crewai_tools":
-                CREWAI_TOOLS_VERSION,
-
-                "openai":
-                OPENAI_VERSION
-            }
         }
-
 
     except Exception as e:
 
+        print("=" * 60)
+        print("CREWAI TEST FAILED")
+        print("=" * 60)
+
+        print(
+            "TYPE:",
+            type(e).__name__
+        )
+
+        print(
+            "ERROR:",
+            str(e)
+        )
+
         traceback.print_exc()
+
+        print("=" * 60)
+
+        versions = {}
+
+        try:
+            import crewai
+
+            versions["crewai"] = getattr(
+                crewai,
+                "__version__",
+                "unknown"
+            )
+
+        except Exception:
+            pass
+
+        try:
+            import litellm
+
+            versions["litellm"] = getattr(
+                litellm,
+                "__version__",
+                "unknown"
+            )
+
+        except Exception:
+            pass
+
+        try:
+            import openai
+
+            versions["openai"] = getattr(
+                openai,
+                "__version__",
+                "unknown"
+            )
+
+        except Exception:
+            pass
 
         return {
 
-            "success": False,
+            "test": (
+                "CrewAI -> LiteLLM -> OpenRouter"
+            ),
 
-            "error_type":
-            type(e).__name__,
+            "result": {
 
-            "error":
-            str(e),
+                "success": False,
 
-            "uses_litellm":
-            False
+                "error_type": type(e).__name__,
+
+                "error": str(e),
+            },
+
+            "versions": versions,
         }
 
 
@@ -403,42 +535,28 @@ class TripRequest(BaseModel):
 
 @app.post("/generate-trip")
 @app.post("/generate-trip/")
-async def generate(request: TripRequest):
+async def generate(
+    request: TripRequest
+):
 
-    print("")
-    print("=" * 70)
+    print("=" * 60)
     print("POST /generate-trip")
-    print("=" * 70)
+    print("=" * 60)
 
     print(
-        "Starting city:",
-        request.starting_city
+        "Request:",
+        request.model_dump()
     )
-
-    print(
-        "Days:",
-        request.days
-    )
-
-    print(
-        "Travel style:",
-        request.travel_style
-    )
-
-    print(
-        "Transport:",
-        request.transport
-    )
-
-    print(
-        "Budget:",
-        request.budget
-    )
-
-    print("=" * 70)
-
 
     try:
+
+        # Import only when endpoint is actually called.
+        #
+        # This makes startup more reliable and allows
+        # /debug-openrouter to work even if CrewAI has
+        # an initialization problem.
+
+        from crew import generate_trip
 
         result = await generate_trip(
 
@@ -450,44 +568,36 @@ async def generate(request: TripRequest):
 
             request.transport,
 
-            request.budget
+            request.budget,
         )
 
-
-        print("")
-        print("=" * 70)
-        print("TRIP GENERATION SUCCESSFUL")
-        print("=" * 70)
-
+        print(
+            "Trip generated successfully."
+        )
 
         return {
-
-            "trip":
-            result
+            "trip": result
         }
-
 
     except Exception as e:
 
-        print("")
-        print("=" * 70)
-        print("TRIP GENERATION FAILED")
-        print("=" * 70)
+        print("=" * 60)
+        print("GENERATE TRIP FAILED")
+        print("=" * 60)
 
         print(
-            "Exception type:",
+            "TYPE:",
             type(e).__name__
         )
 
         print(
-            "Exception:",
+            "ERROR:",
             str(e)
         )
 
         traceback.print_exc()
 
-        print("=" * 70)
-
+        print("=" * 60)
 
         raise HTTPException(
 
