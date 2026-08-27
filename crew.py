@@ -231,8 +231,7 @@ async def run_single_task(
         result = await single_crew.kickoff_async()
 
 
-        elapsed =
-            time.time() - start_time
+        elapsed = time.time() - start_time
 
 
         print("=" * 70)
@@ -248,8 +247,7 @@ async def run_single_task(
 
     except Exception as e:
 
-        elapsed =
-            time.time() - start_time
+        elapsed = time.time() - start_time
 
 
         print("=" * 70)
