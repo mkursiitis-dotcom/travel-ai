@@ -278,8 +278,10 @@ Izmanto reālas Latvijas vietas.
 task3 = Task(
 
     description="""
-Izveido gala ceļojuma plānu
-Markdown formātā.
+    Izveido gala ceļojuma plānu, izmantojot iepriekšējo
+    plānotāja un tūrisma eksperta darbu.
+
+    Apvieno un pārbaudi iepriekš iegūto informāciju.
 
 OBLIGĀTI:
 
@@ -315,7 +317,9 @@ Atbildi tikai ar gala ceļojuma plānu.
         "Pilns Markdown ceļojuma plāns."
     ),
 
-    agent=reviewer
+    agent=reviewer,
+
+    context=[task1, task2]
 )
 
 
