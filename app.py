@@ -1,11 +1,3 @@
-ChatGPT saka:
-Absolutely. Let's continue with app.py, but I'll keep it focused and compatible with your existing crew.py.
-
-The goal here is to add real progress reporting without changing your CrewAI logic yet.
-
-One important point: because your current crew.py exposes only generate_trip(), app.py cannot know when Task 1/2/3 actually starts or finishes. So this first version will prepare the SSE infrastructure, and then we'll make a small change to crew.py to emit the actual task events.
-
-app.py — complete replacement
 import os
 import sys
 import traceback
@@ -62,7 +54,9 @@ ORS_API_KEY = os.getenv(
     ""
 ).strip()
 
-OPENROUTER_URL = "https://openrouter.ai/api/v1"
+OPENROUTER_URL = (
+    "https://openrouter.ai/api/v1"
+)
 
 
 # ============================================================
@@ -87,7 +81,8 @@ async def root():
 async def debug():
 
     return {
-        "status": "FastAPI backend connection verified!"
+        "status":
+            "FastAPI backend connection verified!"
     }
 
 
@@ -141,7 +136,8 @@ async def debug_openrouter():
 
         return {
             "success": False,
-            "error": "OPENROUTER_API_KEY is missing"
+            "error":
+                "OPENROUTER_API_KEY is missing"
         }
 
     try:
@@ -194,9 +190,7 @@ async def debug_openrouter_chat():
     if not OPENROUTER_API_KEY:
 
         return {
-
             "success": False,
-
             "error":
                 "OPENROUTER_API_KEY is missing"
         }
@@ -237,11 +231,9 @@ async def debug_openrouter_chat():
                     }
                 ],
 
-                "temperature":
-                    0,
+                "temperature": 0,
 
-                "max_tokens":
-                    20
+                "max_tokens": 20
             },
 
             timeout=60
@@ -296,8 +288,7 @@ async def debug_litellm():
             messages=[
 
                 {
-                    "role":
-                        "user",
+                    "role": "user",
 
                     "content":
                         "Reply only with: LITELLM OK"
@@ -310,11 +301,9 @@ async def debug_litellm():
             api_base=
                 OPENROUTER_URL,
 
-            temperature=
-                0,
+            temperature=0,
 
-            max_tokens=
-                20
+            max_tokens=20
         )
 
         content = (
@@ -409,6 +398,7 @@ async def debug_crewai():
 
             crewai_version = "unknown"
 
+
         try:
 
             import litellm
@@ -423,6 +413,7 @@ async def debug_crewai():
 
             litellm_version = "unknown"
 
+
         try:
 
             import openai
@@ -436,6 +427,7 @@ async def debug_crewai():
         except Exception:
 
             openai_version = "unknown"
+
 
         return {
 
@@ -611,7 +603,6 @@ async def test_progress(request: Request):
         for icon, message in messages:
 
             if await request.is_disconnected():
-
                 break
 
             data = {
@@ -627,12 +618,13 @@ async def test_progress(request: Request):
             }
 
             yield (
-                f"data: "
+                "data: "
                 f"{json.dumps(data, ensure_ascii=False)}"
-                f"\n\n"
+                "\n\n"
             )
 
             await asyncio.sleep(2)
+
 
     return StreamingResponse(
 
