@@ -39,13 +39,8 @@ MODEL_NAME = (
 # ============================================================
 
 if not OPENROUTER_API_KEY:
-
-    print(
-        "WARNING: OPENROUTER_API_KEY is missing"
-    )
-
+    print("WARNING: OPENROUTER_API_KEY is missing")
 else:
-
     print(
         f"OpenRouter key loaded: "
         f"{OPENROUTER_API_KEY[:15]}..."
@@ -57,15 +52,10 @@ else:
 # ============================================================
 
 llm = LLM(
-
     model=MODEL_NAME,
-
     api_key=OPENROUTER_API_KEY,
-
     base_url=OPENROUTER_BASE_URL,
-
     temperature=0.3,
-
     max_tokens=8000
 )
 
@@ -77,20 +67,11 @@ llm = LLM(
 search_tool = None
 
 if SERPER_API_KEY:
-
     try:
-
         search_tool = SerperDevTool()
-
-        print(
-            "SerperDevTool initialized."
-        )
-
+        print("SerperDevTool initialized.")
     except Exception as e:
-
-        print(
-            f"WARNING: Serper failed: {e}"
-        )
+        print(f"WARNING: Serper failed: {e}")
 
 
 # ============================================================
@@ -98,7 +79,6 @@ if SERPER_API_KEY:
 # ============================================================
 
 planner = Agent(
-
     role="Latvijas ceļojumu plānotājs",
 
     goal=(
@@ -119,7 +99,6 @@ nevajadzīgi daudz laika transportā.
 """,
 
     llm=llm,
-
     verbose=False
 )
 
@@ -135,7 +114,6 @@ if search_tool:
 
 
 guide_logistics = Agent(
-
     role="Latvijas tūrisma un loģistikas eksperts",
 
     goal=(
@@ -158,9 +136,7 @@ izmanto to aktuālai informācijai.
 """,
 
     tools=guide_tools,
-
     llm=llm,
-
     verbose=False
 )
 
@@ -170,7 +146,6 @@ izmanto to aktuālai informācijai.
 # ============================================================
 
 reviewer = Agent(
-
     role="Ceļojumu plāna redaktors",
 
     goal=(
@@ -189,13 +164,12 @@ Tu izveido skaidras Markdown tabulas.
 """,
 
     llm=llm,
-
     verbose=False
 )
 
 
 # ============================================================
-# RUN SINGLE CREW
+# RUN SINGLE TASK
 # ============================================================
 
 async def run_single_task(
@@ -213,26 +187,15 @@ async def run_single_task(
     try:
 
         single_crew = Crew(
-
-            agents=[
-                agent
-            ],
-
-            tasks=[
-                task
-            ],
-
+            agents=[agent],
+            tasks=[task],
             process=Process.sequential,
-
             verbose=False
         )
 
-
         result = await single_crew.kickoff_async()
 
-
         elapsed = time.time() - start_time
-
 
         print("=" * 70)
         print(
@@ -241,14 +204,11 @@ async def run_single_task(
         )
         print("=" * 70)
 
-
         return result.raw
-
 
     except Exception as e:
 
         elapsed = time.time() - start_time
-
 
         print("=" * 70)
         print(
@@ -266,7 +226,7 @@ async def run_single_task(
 
 
 # ============================================================
-# TEST EXACT CREWAI LLM
+# TEST CREWAI LLM
 # ============================================================
 
 async def test_llm():
@@ -295,7 +255,7 @@ async def test_llm():
 
 
 # ============================================================
-# GENERATE TRIP WITH PROGRESS
+# GENERATE TRIP
 # ============================================================
 
 async def generate_trip(
@@ -326,18 +286,14 @@ async def generate_trip(
     # ========================================================
 
     await progress({
-
         "type": "task_started",
-
         "stage": 1,
-
         "icon": "🧭",
-
-        "title":
-            "Ceļojumu plānotājs",
-
-        "message":
-            "Veido maršruta koncepciju un sadala ceļojumu pa dienām."
+        "title": "Ceļojumu plānotājs",
+        "message": (
+            "Veido maršruta koncepciju "
+            "un sadala ceļojumu pa dienām."
+        )
     })
 
 
@@ -390,29 +346,25 @@ tūrisma ekspertam.
     except Exception as e:
 
         await progress({
-
             "type": "error",
-
-            "message":
-                f"Maršruta plānošana neizdevās: {str(e)}"
+            "stage": 1,
+            "message": (
+                f"Maršruta plānošana neizdevās: "
+                f"{str(e)}"
+            )
         })
 
         raise
 
 
     await progress({
-
         "type": "task_completed",
-
         "stage": 1,
-
         "icon": "✅",
-
-        "title":
-            "Ceļojumu plānotājs",
-
-        "message":
+        "title": "Ceļojumu plānotājs",
+        "message": (
             "Maršruta koncepcija ir gatava."
+        )
     })
 
 
@@ -421,18 +373,14 @@ tūrisma ekspertam.
     # ========================================================
 
     await progress({
-
         "type": "task_started",
-
         "stage": 2,
-
         "icon": "🏰",
-
-        "title":
-            "Tūrisma un loģistikas eksperts",
-
-        "message":
-            "Meklē apskates vietas, ēdināšanu un praktisku maršrutu."
+        "title": "Tūrisma un loģistikas eksperts",
+        "message": (
+            "Meklē apskates vietas, ēdināšanu "
+            "un praktisku maršrutu."
+        )
     })
 
 
@@ -503,29 +451,26 @@ Neveic nevajadzīgus atkārtotus meklējumus.
     except Exception as e:
 
         await progress({
-
             "type": "error",
-
-            "message":
-                f"Tūrisma informācijas izveide neizdevās: {str(e)}"
+            "stage": 2,
+            "message": (
+                f"Tūrisma informācijas izveide "
+                f"neizdevās: {str(e)}"
+            )
         })
 
         raise
 
 
     await progress({
-
         "type": "task_completed",
-
         "stage": 2,
-
         "icon": "✅",
-
-        "title":
-            "Tūrisma un loģistikas eksperts",
-
-        "message":
-            "Apskates vietas, maršruts un praktiskā informācija ir sagatavota."
+        "title": "Tūrisma un loģistikas eksperts",
+        "message": (
+            "Apskates vietas, maršruts un "
+            "praktiskā informācija ir sagatavota."
+        )
     })
 
 
@@ -534,18 +479,14 @@ Neveic nevajadzīgus atkārtotus meklējumus.
     # ========================================================
 
     await progress({
-
         "type": "task_started",
-
         "stage": 3,
-
         "icon": "📝",
-
-        "title":
-            "Ceļojumu plāna redaktors",
-
-        "message":
-            "Pārbauda informāciju un veido gala ceļojuma plānu."
+        "title": "Ceļojumu plāna redaktors",
+        "message": (
+            "Pārbauda informāciju un veido "
+            "gala ceļojuma plānu."
+        )
     })
 
 
@@ -630,29 +571,25 @@ Atbildi tikai ar gala ceļojuma plānu.
     except Exception as e:
 
         await progress({
-
             "type": "error",
-
-            "message":
-                f"Gala plāna izveide neizdevās: {str(e)}"
+            "stage": 3,
+            "message": (
+                f"Gala plāna izveide neizdevās: "
+                f"{str(e)}"
+            )
         })
 
         raise
 
 
     await progress({
-
         "type": "task_completed",
-
         "stage": 3,
-
         "icon": "✅",
-
-        "title":
-            "Ceļojumu plāna redaktors",
-
-        "message":
+        "title": "Ceļojumu plāna redaktors",
+        "message": (
             "Gala ceļojuma plāns ir sagatavots."
+        )
     })
 
 
