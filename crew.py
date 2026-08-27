@@ -1,6 +1,7 @@
 import os
 import asyncio
 import traceback
+import time
 
 from dotenv import load_dotenv
 
@@ -38,11 +39,13 @@ MODEL_NAME = (
 # ============================================================
 
 if not OPENROUTER_API_KEY:
+
     print(
         "WARNING: OPENROUTER_API_KEY is missing"
     )
 
 else:
+
     print(
         f"OpenRouter key loaded: "
         f"{OPENROUTER_API_KEY[:15]}..."
@@ -192,159 +195,76 @@ Tu izveido skaidras Markdown tabulas.
 
 
 # ============================================================
-# TASK 1
+# RUN SINGLE CREW
 # ============================================================
 
-task1 = Task(
+async def run_single_task(
+    agent,
+    task,
+    stage_name
+):
 
-    description="""
-Izveido {days} dienu Latvijas ceļojuma konceptu.
+    print("=" * 70)
+    print(f"START: {stage_name}")
+    print("=" * 70)
 
-Sākuma pilsēta:
-{starting_city}
+    start_time = time.time()
 
-Ceļojuma veids:
-{travel_style}
+    try:
 
-Transports:
-{transport}
+        single_crew = Crew(
 
-Budžets:
-{budget}
+            agents=[
+                agent
+            ],
 
-Prasības:
+            tasks=[
+                task
+            ],
 
-- Katrai dienai norādi galveno reģionu.
-- Izvēlies loģisku maršrutu.
-- Ņem vērā transportu.
-- Ņem vērā budžetu.
-- Samazini nevajadzīgu braukšanu.
-""",
+            process=Process.sequential,
 
-    expected_output=(
-        "Ceļojuma koncepta plāns pa dienām."
-    ),
-
-    agent=planner
-)
+            verbose=False
+        )
 
 
-# ============================================================
-# TASK 2
-# ============================================================
-
-task2 = Task(
-
-    description="""
-Izveido detalizētu {days} dienu
-ceļojuma plānu.
-
-Sākuma pilsēta:
-{starting_city}
-
-Ceļojuma veids:
-{travel_style}
-
-Transports:
-{transport}
-
-Budžets:
-{budget}
-
-Iekļauj:
-
-- apskates objektus
-- dabas takas
-- ēdināšanu
-- naktsmītnes
-- aptuvenās izmaksas
-- transporta loģiku
-
-Izmanto reālas Latvijas vietas.
-""",
-
-    expected_output=(
-        "Detalizēts ceļojuma plāns ar izmaksām."
-    ),
-
-    agent=guide_logistics
-)
+        result = await single_crew.kickoff_async()
 
 
-# ============================================================
-# TASK 3
-# ============================================================
-
-task3 = Task(
-
-    description="""
-    Izveido gala ceļojuma plānu, izmantojot iepriekšējo
-    plānotāja un tūrisma eksperta darbu.
-
-    Apvieno un pārbaudi iepriekš iegūto informāciju.
-
-OBLIGĀTI:
-
-Katrai dienai:
-
-| Laiks | Atrašanās vieta | Objekts / Darbība | Apraksts |
-|---|---|---|---|
-
-Pēc katras dienas:
-
-### Ēdināšana un naktsmītnes
-
-- Pusdienas:
-- Vakariņas:
-- Naktsmītne:
-
-Beigās:
-
-## Aptuvenās izmaksas
-
-- Transports
-- Ēdiens
-- Naktsmītnes
-- Ieejas maksas
-- Kopā
-
-Pievieno praktiskus ceļošanas padomus.
-
-Atbildi tikai ar gala ceļojuma plānu.
-""",
-
-    expected_output=(
-        "Pilns Markdown ceļojuma plāns."
-    ),
-
-    agent=reviewer,
-
-    context=[task1, task2]
-)
+        elapsed =
+            time.time() - start_time
 
 
-# ============================================================
-# CREW
-# ============================================================
+        print("=" * 70)
+        print(
+            f"FINISHED: {stage_name} "
+            f"({elapsed:.1f} seconds)"
+        )
+        print("=" * 70)
 
-crew = Crew(
 
-    agents=[
-        planner,
-        guide_logistics,
-        reviewer
-    ],
+        return result.raw
 
-    tasks=[
-        task1,
-        task2,
-        task3
-    ],
 
-    process=Process.sequential,
+    except Exception as e:
 
-    verbose=False
-)
+        elapsed =
+            time.time() - start_time
+
+
+        print("=" * 70)
+        print(
+            f"FAILED: {stage_name} "
+            f"after {elapsed:.1f} seconds"
+        )
+
+        print(
+            f"{type(e).__name__}: {e}"
+        )
+
+        traceback.print_exc()
+
+        raise
 
 
 # ============================================================
@@ -377,7 +297,7 @@ async def test_llm():
 
 
 # ============================================================
-# GENERATE TRIP
+# GENERATE TRIP WITH PROGRESS
 # ============================================================
 
 async def generate_trip(
@@ -385,45 +305,357 @@ async def generate_trip(
     days: int,
     travel_style: str,
     transport: str,
-    budget: str
+    budget: str,
+    progress_callback=None
 ):
 
-    inputs = {
+    async def progress(event):
 
-        "starting_city":
-            starting_city,
+        if progress_callback:
 
-        "days":
-            days,
+            try:
+                await progress_callback(event)
 
-        "travel_style":
-            travel_style,
+            except Exception as e:
 
-        "transport":
-            transport,
+                print(
+                    f"Progress callback error: {e}"
+                )
 
-        "budget":
-            budget
-    }
+
+    # ========================================================
+    # TASK 1
+    # ========================================================
+
+    await progress({
+
+        "type": "task_started",
+
+        "stage": 1,
+
+        "icon": "🧭",
+
+        "title":
+            "Ceļojumu plānotājs",
+
+        "message":
+            "Veido maršruta koncepciju un sadala ceļojumu pa dienām."
+    })
+
+
+    task1 = Task(
+
+        description=f"""
+Izveido {days} dienu Latvijas ceļojuma konceptu.
+
+Sākuma pilsēta:
+{starting_city}
+
+Ceļojuma veids:
+{travel_style}
+
+Transports:
+{transport}
+
+Budžets:
+{budget}
+
+Prasības:
+
+- Katrai dienai norādi galveno reģionu.
+- Izvēlies loģisku maršrutu.
+- Ņem vērā transportu.
+- Ņem vērā budžetu.
+- Samazini nevajadzīgu braukšanu.
+- Izmanto reālas Latvijas vietas.
+
+Izveido praktisku pamatu nākamajam
+tūrisma ekspertam.
+""",
+
+        expected_output=(
+            "Ceļojuma koncepta plāns pa dienām."
+        ),
+
+        agent=planner
+    )
+
 
     try:
 
-        result = await crew.kickoff_async(
-            inputs=inputs
+        plan = await run_single_task(
+            planner,
+            task1,
+            "TASK 1 - PLANNER"
         )
-
-        return result.raw
 
     except Exception as e:
 
-        print(
-            "CREWAI GENERATION FAILED"
-        )
+        await progress({
 
-        print(
-            f"{type(e).__name__}: {e}"
-        )
+            "type": "error",
 
-        traceback.print_exc()
+            "message":
+                f"Maršruta plānošana neizdevās: {str(e)}"
+        })
 
         raise
+
+
+    await progress({
+
+        "type": "task_completed",
+
+        "stage": 1,
+
+        "icon": "✅",
+
+        "title":
+            "Ceļojumu plānotājs",
+
+        "message":
+            "Maršruta koncepcija ir gatava."
+    })
+
+
+    # ========================================================
+    # TASK 2
+    # ========================================================
+
+    await progress({
+
+        "type": "task_started",
+
+        "stage": 2,
+
+        "icon": "🏰",
+
+        "title":
+            "Tūrisma un loģistikas eksperts",
+
+        "message":
+            "Meklē apskates vietas, ēdināšanu un praktisku maršrutu."
+    })
+
+
+    task2 = Task(
+
+        description=f"""
+Izveido detalizētu {days} dienu
+ceļojuma plānu.
+
+Sākuma pilsēta:
+{starting_city}
+
+Ceļojuma veids:
+{travel_style}
+
+Transports:
+{transport}
+
+Budžets:
+{budget}
+
+Zemāk ir pirmā plānotāja izveidotais
+maršruta koncepts:
+
+---------------- PLAN ----------------
+
+{plan}
+
+-------------- END PLAN --------------
+
+Izmanto šo konceptu kā pamatu.
+
+Iekļauj:
+
+- apskates objektus
+- dabas takas
+- ēdināšanu
+- naktsmītnes
+- aptuvenās izmaksas
+- transporta loģiku
+
+Izmanto reālas Latvijas vietas.
+
+Ja ir pieejama meklēšana,
+izmanto to tikai tad, ja tā
+palīdz pārbaudīt konkrētu vietu,
+restorānu vai naktsmītni.
+
+Neveic nevajadzīgus atkārtotus meklējumus.
+""",
+
+        expected_output=(
+            "Detalizēts ceļojuma plāns ar izmaksām."
+        ),
+
+        agent=guide_logistics
+    )
+
+
+    try:
+
+        detailed_plan = await run_single_task(
+            guide_logistics,
+            task2,
+            "TASK 2 - TOURISM AND LOGISTICS"
+        )
+
+    except Exception as e:
+
+        await progress({
+
+            "type": "error",
+
+            "message":
+                f"Tūrisma informācijas izveide neizdevās: {str(e)}"
+        })
+
+        raise
+
+
+    await progress({
+
+        "type": "task_completed",
+
+        "stage": 2,
+
+        "icon": "✅",
+
+        "title":
+            "Tūrisma un loģistikas eksperts",
+
+        "message":
+            "Apskates vietas, maršruts un praktiskā informācija ir sagatavota."
+    })
+
+
+    # ========================================================
+    # TASK 3
+    # ========================================================
+
+    await progress({
+
+        "type": "task_started",
+
+        "stage": 3,
+
+        "icon": "📝",
+
+        "title":
+            "Ceļojumu plāna redaktors",
+
+        "message":
+            "Pārbauda informāciju un veido gala ceļojuma plānu."
+    })
+
+
+    task3 = Task(
+
+        description=f"""
+Izveido gala ceļojuma plānu
+Markdown formātā.
+
+Izmanto iepriekšējo plānotāja
+un tūrisma eksperta darbu.
+
+Pirmā plānotāja koncepts:
+
+---------------- PLAN ----------------
+
+{plan}
+
+-------------- END PLAN --------------
+
+
+Detalizētais tūrisma eksperta plāns:
+
+------------- DETAILS -----------------
+
+{detailed_plan}
+
+----------- END DETAILS ---------------
+
+
+Nepārplāno ceļojumu no nulles.
+
+Apvieno iepriekš iegūto informāciju,
+pārbaudi dienu skaitu un maršruta loģiku.
+
+OBLIGĀTI:
+
+Katrai dienai:
+
+| Laiks | Atrašanās vieta | Objekts / Darbība | Apraksts |
+|---|---|---|---|
+
+Pēc katras dienas:
+
+### Ēdināšana un naktsmītnes
+
+- Pusdienas:
+- Vakariņas:
+- Naktsmītne:
+
+Beigās:
+
+## Aptuvenās izmaksas
+
+- Transports
+- Ēdiens
+- Naktsmītnes
+- Ieejas maksas
+- Kopā
+
+Pievieno praktiskus ceļošanas padomus.
+
+Atbildi tikai ar gala ceļojuma plānu.
+""",
+
+        expected_output=(
+            "Pilns Markdown ceļojuma plāns."
+        ),
+
+        agent=reviewer
+    )
+
+
+    try:
+
+        final_plan = await run_single_task(
+            reviewer,
+            task3,
+            "TASK 3 - FINAL EDITOR"
+        )
+
+    except Exception as e:
+
+        await progress({
+
+            "type": "error",
+
+            "message":
+                f"Gala plāna izveide neizdevās: {str(e)}"
+        })
+
+        raise
+
+
+    await progress({
+
+        "type": "task_completed",
+
+        "stage": 3,
+
+        "icon": "✅",
+
+        "title":
+            "Ceļojumu plāna redaktors",
+
+        "message":
+            "Gala ceļojuma plāns ir sagatavots."
+    })
+
+
+    return final_plan
