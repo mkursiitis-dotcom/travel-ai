@@ -1,14 +1,11 @@
 import os
 import sys
 import traceback
-import asyncio
-import json
 
 import requests
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 
@@ -54,9 +51,7 @@ ORS_API_KEY = os.getenv(
     ""
 ).strip()
 
-OPENROUTER_URL = (
-    "https://openrouter.ai/api/v1"
-)
+OPENROUTER_URL = "https://openrouter.ai/api/v1"
 
 
 # ============================================================
@@ -65,7 +60,6 @@ OPENROUTER_URL = (
 
 @app.get("/")
 async def root():
-
     return {
         "status": "FastAPI backend on Render is running!",
         "service": "AI Trip Planner",
@@ -79,10 +73,8 @@ async def root():
 
 @app.get("/debug")
 async def debug():
-
     return {
-        "status":
-            "FastAPI backend connection verified!"
+        "status": "FastAPI backend connection verified!"
     }
 
 
@@ -94,9 +86,7 @@ async def debug():
 async def debug_env():
 
     def key_info(value):
-
         if not value:
-
             return {
                 "exists": False,
                 "length": 0,
@@ -110,18 +100,19 @@ async def debug_env():
         }
 
     return {
+        "render": os.getenv("RENDER", "false"),
 
-        "render":
-            os.getenv("RENDER", "false"),
+        "openrouter": key_info(
+            OPENROUTER_API_KEY
+        ),
 
-        "openrouter":
-            key_info(OPENROUTER_API_KEY),
+        "serper": key_info(
+            SERPER_API_KEY
+        ),
 
-        "serper":
-            key_info(SERPER_API_KEY),
-
-        "ors":
-            key_info(ORS_API_KEY)
+        "ors": key_info(
+            ORS_API_KEY
+        )
     }
 
 
@@ -133,50 +124,34 @@ async def debug_env():
 async def debug_openrouter():
 
     if not OPENROUTER_API_KEY:
-
         return {
             "success": False,
-            "error":
-                "OPENROUTER_API_KEY is missing"
+            "error": "OPENROUTER_API_KEY is missing"
         }
 
     try:
 
         response = requests.get(
-
             f"{OPENROUTER_URL}/models",
-
             headers={
                 "Authorization":
                     f"Bearer {OPENROUTER_API_KEY}"
             },
-
             timeout=30
         )
 
         return {
-
-            "success":
-                response.status_code == 200,
-
-            "status":
-                response.status_code,
-
-            "response":
-                response.text[:5000]
+            "success": response.status_code == 200,
+            "status": response.status_code,
+            "response": response.text[:5000]
         }
 
     except Exception as e:
 
         return {
-
             "success": False,
-
-            "error_type":
-                type(e).__name__,
-
-            "error":
-                str(e)
+            "error_type": type(e).__name__,
+            "error": str(e)
         }
 
 
@@ -187,22 +162,27 @@ async def debug_openrouter():
 @app.get("/debug-openrouter-chat")
 async def debug_openrouter_chat():
 
-    if not OPENROUTER_API_KEY:
+    """
+    This is the important OpenRouter test.
 
+    /debug-openrouter only checks /models.
+
+    This endpoint actually sends a chat completion request,
+    which is what the trip generator needs.
+    """
+
+    if not OPENROUTER_API_KEY:
         return {
             "success": False,
-            "error":
-                "OPENROUTER_API_KEY is missing"
+            "error": "OPENROUTER_API_KEY is missing"
         }
 
     try:
 
         response = requests.post(
-
             f"{OPENROUTER_URL}/chat/completions",
 
             headers={
-
                 "Authorization":
                     f"Bearer {OPENROUTER_API_KEY}",
 
@@ -217,17 +197,12 @@ async def debug_openrouter_chat():
             },
 
             json={
-
-                "model":
-                    "z-ai/glm-5.3-flash",
+                "model": "z-ai/glm-5.3-flash",
 
                 "messages": [
-
                     {
                         "role": "user",
-
-                        "content":
-                            "Reply only with: OPENROUTER OK"
+                        "content": "Reply only with: OPENROUTER OK"
                     }
                 ],
 
@@ -240,28 +215,17 @@ async def debug_openrouter_chat():
         )
 
         return {
-
-            "success":
-                response.status_code == 200,
-
-            "status":
-                response.status_code,
-
-            "response":
-                response.text[:5000]
+            "success": response.status_code == 200,
+            "status": response.status_code,
+            "response": response.text[:5000]
         }
 
     except Exception as e:
 
         return {
-
             "success": False,
-
-            "error_type":
-                type(e).__name__,
-
-            "error":
-                str(e)
+            "error_type": type(e).__name__,
+            "error": str(e)
         }
 
 
@@ -276,67 +240,46 @@ async def debug_litellm():
 
         import litellm
 
-        os.environ[
-            "OPENROUTER_API_KEY"
-        ] = OPENROUTER_API_KEY
+        os.environ["OPENROUTER_API_KEY"] = OPENROUTER_API_KEY
 
         result = litellm.completion(
 
-            model=
-                "openrouter/z-ai/glm-5.3-flash",
+            model="openrouter/z-ai/glm-5.3-flash",
 
             messages=[
-
                 {
                     "role": "user",
-
-                    "content":
-                        "Reply only with: LITELLM OK"
+                    "content": "Reply only with: LITELLM OK"
                 }
             ],
 
-            api_key=
-                OPENROUTER_API_KEY,
+            api_key=OPENROUTER_API_KEY,
 
-            api_base=
-                OPENROUTER_URL,
+            api_base=OPENROUTER_URL,
 
             temperature=0,
 
             max_tokens=20
         )
 
-        content = (
-            result.choices[0]
-            .message.content
-        )
+        content = result.choices[0].message.content
 
         return {
-
-            "test":
-                "LiteLLM -> OpenRouter",
-
-            "success":
-                True,
-
-            "result":
-                content,
-
+            "test": "LiteLLM -> OpenRouter",
+            "success": True,
+            "result": content,
             "versions": {
-
-                "litellm":
-                    getattr(
-                        litellm,
-                        "__version__",
-                        "unknown"
-                    )
+                "litellm": getattr(
+                    litellm,
+                    "__version__",
+                    "unknown"
+                )
             }
         }
 
     except Exception as e:
 
         try:
-
             import litellm
 
             litellm_version = getattr(
@@ -346,27 +289,15 @@ async def debug_litellm():
             )
 
         except Exception:
-
             litellm_version = "unknown"
 
         return {
-
-            "test":
-                "LiteLLM -> OpenRouter",
-
-            "success":
-                False,
-
-            "error_type":
-                type(e).__name__,
-
-            "error":
-                str(e),
-
+            "test": "LiteLLM -> OpenRouter",
+            "success": False,
+            "error_type": type(e).__name__,
+            "error": str(e),
             "versions": {
-
-                "litellm":
-                    litellm_version
+                "litellm": litellm_version
             }
         }
 
@@ -385,86 +316,57 @@ async def debug_crewai():
         result = await test_llm()
 
         try:
-
             import crewai
-
             crewai_version = getattr(
                 crewai,
                 "__version__",
                 "unknown"
             )
-
         except Exception:
-
             crewai_version = "unknown"
 
-
         try:
-
             import litellm
-
             litellm_version = getattr(
                 litellm,
                 "__version__",
                 "unknown"
             )
-
         except Exception:
-
             litellm_version = "unknown"
 
-
         try:
-
             import openai
-
             openai_version = getattr(
                 openai,
                 "__version__",
                 "unknown"
             )
-
         except Exception:
-
             openai_version = "unknown"
 
-
         return {
+            "test": "CrewAI -> OpenRouter",
 
-            "test":
-                "CrewAI -> OpenRouter",
-
-            "result":
-                result,
+            "result": result,
 
             "versions": {
-
-                "crewai":
-                    crewai_version,
-
-                "litellm":
-                    litellm_version,
-
-                "openai":
-                    openai_version
+                "crewai": crewai_version,
+                "litellm": litellm_version,
+                "openai": openai_version
             }
         }
 
     except Exception as e:
 
         return {
+            "test": "CrewAI -> OpenRouter",
 
-            "test":
-                "CrewAI -> OpenRouter",
+            "success": False,
 
-            "success":
-                False,
+            "error_type": type(e).__name__,
 
-            "error_type":
-                type(e).__name__,
-
-            "error":
-                str(e)
+            "error": str(e)
         }
 
 
@@ -482,7 +384,7 @@ class TripRequest(BaseModel):
 
 
 # ============================================================
-# NORMAL GENERATE-TRIP ENDPOINT
+# GENERATE TRIP
 # ============================================================
 
 @app.post("/generate-trip")
@@ -493,40 +395,21 @@ async def generate(request: TripRequest):
     print("POST /generate-trip")
     print("=" * 70)
 
-    print(
-        f"starting_city: {request.starting_city}"
-    )
-
-    print(
-        f"days: {request.days}"
-    )
-
-    print(
-        f"travel_style: {request.travel_style}"
-    )
-
-    print(
-        f"transport: {request.transport}"
-    )
-
-    print(
-        f"budget: {request.budget}"
-    )
+    print(f"starting_city: {request.starting_city}")
+    print(f"days: {request.days}")
+    print(f"travel_style: {request.travel_style}")
+    print(f"transport: {request.transport}")
+    print(f"budget: {request.budget}")
 
     try:
 
         from crew import generate_trip
 
         result = await generate_trip(
-
             request.starting_city,
-
             request.days,
-
             request.travel_style,
-
             request.transport,
-
             request.budget
         )
 
@@ -540,111 +423,15 @@ async def generate(request: TripRequest):
         print("GENERATE TRIP ERROR")
         print("=" * 70)
 
-        print(
-            f"Type: {type(e).__name__}"
-        )
-
-        print(
-            f"Error: {e}"
-        )
+        print(f"Type: {type(e).__name__}")
+        print(f"Error: {e}")
 
         traceback.print_exc()
 
         raise HTTPException(
-
             status_code=500,
-
             detail=str(e)
         )
-
-
-# ============================================================
-# SSE TEST ENDPOINT
-# ============================================================
-
-@app.get("/test-progress")
-async def test_progress(request: Request):
-
-    async def event_generator():
-
-        messages = [
-
-            (
-                "🧭",
-                "Ceļojumu plānotājs sāk darbu..."
-            ),
-
-            (
-                "🏰",
-                "Meklē apskates vietas..."
-            ),
-
-            (
-                "🚗",
-                "Pārbauda maršruta loģiku..."
-            ),
-
-            (
-                "💰",
-                "Aprēķina aptuvenās izmaksas..."
-            ),
-
-            (
-                "📝",
-                "Veido gala ceļojuma plānu..."
-            ),
-
-            (
-                "✅",
-                "Testa process pabeigts!"
-            )
-        ]
-
-        for icon, message in messages:
-
-            if await request.is_disconnected():
-                break
-
-            data = {
-
-                "type":
-                    "progress",
-
-                "icon":
-                    icon,
-
-                "message":
-                    message
-            }
-
-            yield (
-                "data: "
-                f"{json.dumps(data, ensure_ascii=False)}"
-                "\n\n"
-            )
-
-            await asyncio.sleep(2)
-
-
-    return StreamingResponse(
-
-        event_generator(),
-
-        media_type=
-            "text/event-stream",
-
-        headers={
-
-            "Cache-Control":
-                "no-cache",
-
-            "Connection":
-                "keep-alive",
-
-            "X-Accel-Buffering":
-                "no"
-        }
-    )
 
 
 # ============================================================
@@ -655,29 +442,23 @@ async def test_progress(request: Request):
 async def startup_event():
 
     print("=" * 70)
-
-    print(
-        "AI TRIP PLANNER STARTED"
-    )
-
+    print("AI TRIP PLANNER STARTED")
     print("=" * 70)
 
-    print(
-        f"Python: {sys.version}"
-    )
+    print(f"Python: {sys.version}")
 
     print(
-        "OPENROUTER_API_KEY exists: "
+        f"OPENROUTER_API_KEY exists: "
         f"{bool(OPENROUTER_API_KEY)}"
     )
 
     print(
-        "SERPER_API_KEY exists: "
+        f"SERPER_API_KEY exists: "
         f"{bool(SERPER_API_KEY)}"
     )
 
     print(
-        "ORS_API_KEY exists: "
+        f"ORS_API_KEY exists: "
         f"{bool(ORS_API_KEY)}"
     )
 
